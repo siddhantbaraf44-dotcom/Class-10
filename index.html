@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0f" />
+<meta name="color-scheme" content="dark" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Q&amp;A" />
+<meta name="application-name" content="Q&amp;A Student" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="msapplication-tap-highlight" content="no" />
+<meta name="description" content="Browse educational questions and answers by class, subject and chapter." />
+<title>Classes</title>
+
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png" />
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png" />
+<link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png" />
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="offline-tag" id="offlineTag">OFFLINE</div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-row">
+      <h1 class="title">Classes</h1>
+    </div>
+    <div class="breadcrumb"><span class="current">Classes</span></div>
+
+    <!-- Global search bar: searches every question in the database -->
+    <div class="search-bar-global">
+      <span class="search-icon">⌕</span>
+      <input
+        type="search"
+        class="search-input"
+        id="searchInput"
+        placeholder="Search all questions…"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      />
+      <button class="search-clear" id="searchClear" aria-label="Clear" style="display:none;">×</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="spinner-wrap"><div class="spinner"></div><div>Loading…</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const { db, escapeHtml, buildUrl } = window.APP;
+  const $content = document.getElementById('content');
+  const $search = document.getElementById('searchInput');
+  const $clear = document.getElementById('searchClear');
+
+  let allData = null;          // raw /classes tree
+  let allQuestions = [];       // flat list of all questions with breadcrumb metadata
+  let debounceTimer = null;
+
+  /* ===== Build a flat search index from the /classes tree ===== */
+  function buildIndex(data) {
+    const items = [];
+    Object.keys(data).forEach(cId => {
+      const cName = data[cId].name || '';
+      const subs = data[cId].subjects || {};
+      Object.keys(subs).forEach(sId => {
+        const sName = subs[sId].name || '';
+        const chs = subs[sId].chapters || {};
+        Object.keys(chs).forEach(chId => {
+          const chName = chs[chId].name || '';
+          const qs = chs[chId].questions || {};
+          Object.keys(qs).forEach(qId => {
+            items.push({
+              id: qId,
+              classId: cId,
+              className: cName,
+              subjectId: sId,
+              subjectName: sName,
+              chapterId: chId,
+              chapterName: chName,
+              type: (qs[qId].type || '').toString(),
+              question: (qs[qId].question || '').toString(),
+              answer: (qs[qId].answer || '').toString()
+            });
+          });
+        });
+      });
+    });
+    return items;
+  }
+
+  /* ===== Render the class list (default view) ===== */
+  function renderClassList() {
+    if (!allData) return;
+    const cIds = Object.keys(allData).sort((a, b) =>
+      String(allData[a].name).localeCompare(String(allData[b].name), undefined, { numeric: true })
+    );
+    if (!cIds.length) {
+      $content.innerHTML = '<div class="empty">No classes available yet.</div>';
+      return;
+    }
+    $content.innerHTML = '<div class="list">' + cIds.map(id => `
+      <a class="list-item" href="${buildUrl('subjects.html', { classId: id })}">
+        <span>${escapeHtml(allData[id].name)}</span>
+        <span class="arrow">›</span>
+      </a>
+    `).join('') + '</div>';
+  }
+
+  /* ===== Render search results ===== */
+  function doSearch() {
+    const q = ($search.value || '').trim();
+    const qLow = q.toLowerCase();
+    $clear.style.display = q ? 'flex' : 'none';
+
+    if (!q) {
+      renderClassList();
+      return;
+    }
+    if (!allQuestions.length) {
+      $content.innerHTML = '<div class="empty">No questions in database yet.</div>';
+      return;
+    }
+
+    const filtered = allQuestions.filter(it => {
+      return (it.question || '').toLowerCase().includes(qLow) ||
+             (it.type || '').toLowerCase().includes(qLow);
+    });
+
+    if (!filtered.length) {
+      $content.innerHTML = `<div class="empty">No questions match &ldquo;${escapeHtml(q)}&rdquo;.<br>Try a different keyword.</div>`;
+      return;
+    }
+
+    // Group by chapter while preserving the order of first appearance
+    const groups = new Map();
+    filtered.forEach(it => {
+      const key = `${it.classId}||${it.subjectId}||${it.chapterId}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          classId: it.classId,
+          subjectId: it.subjectId,
+          chapterId: it.chapterId,
+          className: it.className,
+          subjectName: it.subjectName,
+          chapterName: it.chapterName,
+          items: []
+        });
+      }
+      groups.get(key).items.push(it);
+    });
+
+    let html = `<div class="search-meta">${filtered.length} result${filtered.length === 1 ? '' : 's'} for &ldquo;${escapeHtml(q)}&rdquo;</div>`;
+
+    groups.forEach(g => {
+      html += `<div class="search-group">`;
+      html += `<div class="search-group-path">`;
+      html += `<a href="${buildUrl('subjects.html', { classId: g.classId })}">${escapeHtml(g.className)}</a>`;
+      html += `<span class="crumb-sep">›</span>`;
+      html += `<a href="${buildUrl('chapters.html', { classId: g.classId, subjectId: g.subjectId })}">${escapeHtml(g.subjectName)}</a>`;
+      html += `<span class="crumb-sep">›</span>`;
+      html += `<span class="current">${escapeHtml(g.chapterName)}</span>`;
+      html += `</div>`;
+      html += `<div class="search-group-list">`;
+      g.items.forEach((it, idx) => {
+        const url = buildUrl('answer.html', {
+          classId: it.classId,
+          subjectId: it.subjectId,
+          chapterId: it.chapterId,
+          qId: it.id
+        });
+        html += `<a class="search-result" href="${url}">`;
+        html += `<span class="result-num">${idx + 1}.</span>`;
+        html += `<div class="result-body">`;
+        if (it.type) html += `<div class="result-type">${escapeHtml(it.type)}</div>`;
+        html += `<div class="result-text">${escapeHtml(it.question)}</div>`;
+        html += `</div></a>`;
+      });
+      html += `</div></div>`;
+    });
+
+    $content.innerHTML = html;
+  }
+
+  /* ===== Initial load ===== */
+  db.ref('/classes').once('value', snap => {
+    allData = snap.val() || {};
+    allQuestions = buildIndex(allData);
+
+    // Restore search query from URL hash (so back-button from a result reopens results)
+    const m = (window.location.hash || '').match(/^#q=(.*)$/);
+    if (m && m[1]) {
+      try { $search.value = decodeURIComponent(m[1]); } catch (e) {}
+    }
+
+    doSearch();
+  }, err => {
+    $content.innerHTML = `<div class="error-banner">Failed to load: ${escapeHtml(err.message)}</div>`;
+  });
+
+  /* ===== Search input wiring ===== */
+  $search.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      // Mirror query into URL hash so back/forward preserves state
+      const q = ($search.value || '').trim();
+      const newHash = q ? '#q=' + encodeURIComponent(q) : '';
+      if ((window.location.hash || '') !== newHash) {
+        history.replaceState(null, '', window.location.pathname + (newHash || ''));
+      }
+      doSearch();
+    }, 180);
+  });
+
+  $search.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { $search.value = ''; doSearch(); }
+  });
+
+  $clear.addEventListener('click', () => {
+    $search.value = '';
+    history.replaceState(null, '', window.location.pathname);
+    doSearch();
+    $search.focus();
+  });
+})();
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e2b79628d53b15',t:'MTc4MTg3NDAzMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

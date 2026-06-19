@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0f" />
+<meta name="color-scheme" content="dark" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Q&amp;A" />
+<meta name="application-name" content="Q&amp;A Student" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="msapplication-tap-highlight" content="no" />
+<title>Subjects</title>
+
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="offline-tag" id="offlineTag">OFFLINE</div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-row">
+      <a class="back-link" href="index.html" aria-label="Back">‹</a>
+      <h1 class="title" id="pageTitle">Subjects</h1>
+    </div>
+    <div class="breadcrumb" id="breadcrumb">
+      <a href="index.html">Classes</a>
+      <span class="crumb-sep">›</span>
+      <span class="current">…</span>
+    </div>
+  </div>
+  <div id="content">
+    <div class="spinner-wrap"><div class="spinner"></div><div>Loading…</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const { db, escapeHtml, getParam, buildUrl } = window.APP;
+  const classId = getParam('classId');
+
+  // Extract a displayable name from either a string ("Class 10")
+  // or an object ({ name: "Class 10" }), or return '' for null.
+  const getName = o => (o == null ? '' : (typeof o === 'object' && o.name != null) ? String(o.name) : String(o));
+
+  const $title = document.getElementById('pageTitle');
+  const $crumbCurrent = document.querySelector('#breadcrumb .current');
+  const $content = document.getElementById('content');
+
+  if (!classId) {
+    $content.innerHTML = '<div class="error-banner">No class selected.<br><a href="index.html">Go back to Classes</a></div>';
+    $title.textContent = 'Subjects';
+    return;
+  }
+
+  // Fetch class name + subjects in parallel
+  Promise.all([
+    db.ref(`/classes/${classId}/name`).once('value'),
+    db.ref(`/classes/${classId}/subjects`).once('value')
+  ]).then(([nameSnap, subsSnap]) => {
+    const className = nameSnap.val();
+    if (className === null) {
+      $content.innerHTML = '<div class="error-banner">This class no longer exists.<br><a href="index.html">Go back to Classes</a></div>';
+      $title.textContent = 'Subjects';
+      return;
+    }
+
+    $title.textContent = className;
+    document.title = className + ' — Subjects';
+    $crumbCurrent.textContent = className;
+
+    const subs = subsSnap.val() || {};
+    const ids = Object.keys(subs).sort((a, b) =>
+      getName(subs[a]).localeCompare(getName(subs[b]), undefined, { numeric: true })
+    );
+
+    if (!ids.length) {
+      $content.innerHTML = '<div class="empty">No subjects available.</div>';
+      return;
+    }
+    $content.innerHTML = '<div class="list">' + ids.map(id => `
+      <a class="list-item" href="${buildUrl('chapters.html', { classId, subjectId: id })}">
+        <span>${escapeHtml(getName(subs[id]))}</span>
+        <span class="arrow">›</span>
+      </a>
+    `).join('') + '</div>';
+  }).catch(err => {
+    $content.innerHTML = `<div class="error-banner">Failed to load: ${escapeHtml(err.message)}<br><a href="index.html">Go back</a></div>`;
+  });
+})();
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e2b810fc553b15',t:'MTc4MTg3NDA1MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

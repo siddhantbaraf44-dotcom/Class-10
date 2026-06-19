@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0f" />
+<meta name="color-scheme" content="dark" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Q&amp;A" />
+<meta name="application-name" content="Q&amp;A Student" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="msapplication-tap-highlight" content="no" />
+<title>Chapters</title>
+
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="offline-tag" id="offlineTag">OFFLINE</div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-row">
+      <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
+      <h1 class="title" id="pageTitle">Chapters</h1>
+    </div>
+    <div class="breadcrumb" id="breadcrumb">
+      <a href="index.html">Classes</a>
+      <span class="crumb-sep">›</span>
+      <a id="crumbClass" href="#">…</a>
+      <span class="crumb-sep">›</span>
+      <span class="current">…</span>
+    </div>
+  </div>
+  <div id="content">
+    <div class="spinner-wrap"><div class="spinner"></div><div>Loading chapters…</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const { db, escapeHtml, getParam, buildUrl } = window.APP;
+  const classId = getParam('classId');
+  const subjectId = getParam('subjectId');
+  const $title = document.getElementById('pageTitle');
+  const $backLink = document.getElementById('backLink');
+  const $crumbClass = document.getElementById('crumbClass');
+  const $crumbCurrent = document.querySelector('#breadcrumb .current');
+  const $content = document.getElementById('content');
+
+  if (!classId || !subjectId) {
+    $content.innerHTML = '<div class="error-banner">Missing class or subject.<br><a href="index.html">Go back to Classes</a></div>';
+    return;
+  }
+
+  $backLink.href = buildUrl('subjects.html', { classId });
+  $crumbClass.href = buildUrl('subjects.html', { classId });
+
+  // Fetch class name, subject name, and chapters in parallel
+  Promise.all([
+    db.ref(`/classes/${classId}/name`).once('value'),
+    db.ref(`/classes/${classId}/subjects/${subjectId}/name`).once('value'),
+    db.ref(`/classes/${classId}/subjects/${subjectId}/chapters`).once('value')
+  ]).then(([classNameSnap, subNameSnap, chaptersSnap]) => {
+    const className = classNameSnap.val();
+    const subjectName = subNameSnap.val();
+
+    if (className === null || subjectName === null) {
+      $content.innerHTML = '<div class="error-banner">This class or subject no longer exists.<br><a href="index.html">Go back to Classes</a></div>';
+      return;
+    }
+
+    $title.textContent = subjectName;
+    document.title = subjectName + ' — Chapters';
+    $crumbClass.textContent = className;
+    $crumbCurrent.textContent = subjectName;
+
+    const chapters = chaptersSnap.val() || {};
+    const ids = Object.keys(chapters).sort((a, b) =>
+      String(chapters[a].name).localeCompare(String(chapters[b].name), undefined, { numeric: true })
+    );
+
+    if (!ids.length) {
+      $content.innerHTML = '<div class="empty">No chapters available.</div>';
+      return;
+    }
+
+    // Render list immediately; fetch question counts in parallel
+    $content.innerHTML = '<div class="list">' + ids.map(id => `
+      <a class="list-item" href="${buildUrl('questions.html', { classId, subjectId, chapterId: id })}">
+        <span>${escapeHtml(chapters[id].name)}</span>
+        <span class="count" data-cnt="${id}">…</span>
+        <span class="arrow">›</span>
+      </a>
+    `).join('') + '</div>';
+
+    ids.forEach(id => {
+      db.ref(`/classes/${classId}/subjects/${subjectId}/chapters/${id}/questions`).once('value', qs => {
+        const c = qs.numChildren();
+        const el = $content.querySelector(`[data-cnt="${CSS.escape(id)}"]`);
+        if (el) el.textContent = c === 1 ? '1 question' : `${c} questions`;
+      });
+    });
+  }).catch(err => {
+    $content.innerHTML = `<div class="error-banner">Failed to load: ${escapeHtml(err.message)}<br><a href="index.html">Go back</a></div>`;
+  });
+})();
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e2b886de0e4907',t:'MTc4MTg3NDA2OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

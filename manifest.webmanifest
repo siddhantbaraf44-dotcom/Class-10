@@ -61,7 +61,7 @@
       "name": "Search",
       "short_name": "Search",
       "description": "Search all questions",
-      "url": "./classes.html#q=",
+      "url": "./index.html#q=",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }
   ]

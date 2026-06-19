@@ -5,19 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0a0f" />
 <meta name="color-scheme" content="dark" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Q&amp;A" />
-<meta name="application-name" content="Q&amp;A Student" />
+<meta name="HandheldFriendly" content="true" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
 <title>Questions</title>
 
-<link rel="manifest" href="manifest.webmanifest" />
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+<link rel="dns-prefetch" href="https://www.gstatic.com" />
 
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -29,6 +24,7 @@
     <div class="header-row">
       <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
       <h1 class="title" id="pageTitle">Questions</h1>
+      <div class="update-pill" id="updatePill">Updating…</div>
     </div>
     <div class="breadcrumb" id="breadcrumb">
       <a href="index.html">Classes</a>
@@ -53,95 +49,98 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
 <script src="shared.js"></script>
 <script>
 (function () {
-  const { db, escapeHtml, getParam, buildUrl } = window.APP;
-  const classId = getParam('classId');
-  const subjectId = getParam('subjectId');
-  const chapterId = getParam('chapterId');
-  const $title = document.getElementById('pageTitle');
-  const $backLink = document.getElementById('backLink');
-  const $crumbClass = document.getElementById('crumbClass');
-  const $crumbSubject = document.getElementById('crumbSubject');
-  const $crumbCurrent = document.querySelector('#breadcrumb .current');
-  const $content = document.getElementById('content');
-  const $search = document.getElementById('searchInput');
+  var APP = window.APP;
+  var Store = APP.Store;
+  var escapeHtml = APP.escapeHtml;
+  var getParam = APP.getParam;
+  var buildUrl = APP.buildUrl;
+  var refreshSlice = APP.refreshSlice;
+  var setUpdating = APP.setUpdating;
+
+  var classId = getParam('classId');
+  var subjectId = getParam('subjectId');
+  var chapterId = getParam('chapterId');
+
+  var $title = document.getElementById('pageTitle');
+  var $backLink = document.getElementById('backLink');
+  var $crumbClass = document.getElementById('crumbClass');
+  var $crumbSubject = document.getElementById('crumbSubject');
+  var $crumbCurrent = document.querySelector('#breadcrumb .current');
+  var $content = document.getElementById('content');
+  var $search = document.getElementById('searchInput');
 
   if (!classId || !subjectId || !chapterId) {
-    $content.innerHTML = '<div class="error-banner">Missing class, subject, or chapter.<br><a href="index.html">Go back to Classes</a></div>';
+    $content.innerHTML = '<div class="error-banner">Missing class, subject, or chapter.<br>' +
+                         '<a href="index.html">Go back to Classes</a></div>';
     return;
   }
+  $backLink.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
+  $crumbClass.href = buildUrl('subjects.html', { classId: classId });
+  $crumbSubject.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
 
-  $backLink.href = buildUrl('chapters.html', { classId, subjectId });
-  $crumbClass.href = buildUrl('subjects.html', { classId });
-  $crumbSubject.href = buildUrl('chapters.html', { classId, subjectId });
+  var groups = [];
 
-  let groups = []; // [{ type, items: [{id, type, question, answer}] }]
-
-  Promise.all([
-    db.ref(`/classes/${classId}/name`).once('value'),
-    db.ref(`/classes/${classId}/subjects/${subjectId}/name`).once('value'),
-    db.ref(`/classes/${classId}/subjects/${subjectId}/chapters/${chapterId}/name`).once('value'),
-    db.ref(`/classes/${classId}/subjects/${subjectId}/chapters/${chapterId}/questions`).once('value')
-  ]).then(([classNameSnap, subNameSnap, chNameSnap, qsSnap]) => {
-    const className = classNameSnap.val();
-    const subjectName = subNameSnap.val();
-    const chapterName = chNameSnap.val();
-
-    if (className === null || subjectName === null || chapterName === null) {
-      $content.innerHTML = '<div class="error-banner">This path no longer exists.<br><a href="index.html">Go back to Classes</a></div>';
-      return;
-    }
-
-    $title.textContent = chapterName;
-    document.title = chapterName + ' — Questions';
-    $crumbClass.textContent = className;
-    $crumbSubject.textContent = subjectName;
-    $crumbCurrent.textContent = chapterName;
-
-    const raw = qsSnap.val() || {};
-    const items = Object.keys(raw).map(id => ({
-      id,
-      type: (raw[id].type || 'General').toString().trim(),
-      question: raw[id].question || '',
-      answer: raw[id].answer || ''
-    }));
-
-    // Group by type (preserves first-seen order)
-    const groupOrder = [];
-    const groupMap = {};
-    items.forEach(it => {
-      if (!groupMap[it.type]) { groupMap[it.type] = []; groupOrder.push(it.type); }
-      groupMap[it.type].push(it);
+  function buildGroups(rawQuestions) {
+    var items = Object.keys(rawQuestions || {}).map(function (id) {
+      return {
+        id: id,
+        type: String((rawQuestions[id] && rawQuestions[id].type) || 'General').trim(),
+        question: (rawQuestions[id] && rawQuestions[id].question) || '',
+        answer: (rawQuestions[id] && rawQuestions[id].answer) || ''
+      };
     });
-    groups = groupOrder.map(t => ({ type: t, items: groupMap[t] }));
+    var order = [], map = {};
+    items.forEach(function (it) {
+      if (!map[it.type]) { map[it.type] = []; order.push(it.type); }
+      map[it.type].push(it);
+    });
+    return order.map(function (t) { return { type: t, items: map[t] }; });
+  }
 
+  function renderFromTree(tree) {
+    var cls = tree && tree[classId];
+    if (!cls) return false;
+    var sub = cls.subjects && cls.subjects[subjectId];
+    if (!sub) return false;
+    var ch = sub.chapters && sub.chapters[chapterId];
+    if (!ch) return false;
+
+    $title.textContent = ch.name;
+    document.title = ch.name + ' — Questions';
+    $crumbClass.textContent = cls.name;
+    $crumbSubject.textContent = sub.name;
+    $crumbCurrent.textContent = ch.name;
+
+    groups = buildGroups(ch.questions);
     render();
-  }).catch(err => {
-    $content.innerHTML = `<div class="error-banner">Failed to load: ${escapeHtml(err.message)}<br><a href="index.html">Go back</a></div>`;
-  });
+    return true;
+  }
 
   function render() {
-    const filter = ($search.value || '').trim().toLowerCase();
+    var filter = ($search.value || '').trim().toLowerCase();
     if (!groups.length) {
       $content.innerHTML = '<div class="empty">No questions in this chapter yet.</div>';
       return;
     }
-    let html = '';
-    let anyShown = false;
-    groups.forEach(g => {
-      const filtered = filter
-        ? g.items.filter(it => (it.question || '').toLowerCase().includes(filter))
+    var html = '';
+    var anyShown = false;
+    groups.forEach(function (g) {
+      var filtered = filter
+        ? g.items.filter(function (it) {
+            return (it.question || '').toLowerCase().includes(filter);
+          })
         : g.items;
       if (!filtered.length) return;
       anyShown = true;
-      html += `<div class="group"><div class="group-title">${escapeHtml(g.type)}</div><div class="group-list">`;
-      filtered.forEach((it, idx) => {
-        const url = buildUrl('answer.html', { classId, subjectId, chapterId, qId: it.id });
-        html += `<a class="question-item" href="${url}"><span class="qnum">${idx + 1}.</span><span class="qtext">${escapeHtml(it.question)}</span></a>`;
+      html += '<div class="group"><div class="group-title">' + escapeHtml(g.type) + '</div><div class="group-list">';
+      filtered.forEach(function (it, idx) {
+        var url = buildUrl('answer.html', { classId: classId, subjectId: subjectId, chapterId: chapterId, qId: it.id });
+        html += '<a class="question-item" href="' + url + '">' +
+                '<span class="qnum">' + (idx + 1) + '.</span>' +
+                '<span class="qtext">' + escapeHtml(it.question) + '</span></a>';
       });
       html += '</div></div>';
     });
@@ -152,8 +151,38 @@
     $content.innerHTML = html;
   }
 
+  /* STEP 1: cache render */
+  var cached = Store.getTree();
+  var cachedOk = !!(cached && renderFromTree(cached));
+  if (!cachedOk) {
+    $content.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div>Loading questions…</div></div>';
+  }
+
+  /* STEP 2: refresh this chapter's slice */
+  if (navigator.onLine) {
+    setUpdating(true);
+    refreshSlice('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + chapterId)
+      .then(function (ch) {
+        setUpdating(false);
+        if (ch === null && !cachedOk) {
+          $content.innerHTML = '<div class="error-banner">This chapter no longer exists.<br>' +
+                               '<a href="index.html">Go back to Classes</a></div>';
+          return;
+        }
+        renderFromTree(Store.getTree());
+      })
+      .catch(function (err) {
+        setUpdating(false);
+        if (!cachedOk) {
+          $content.innerHTML = '<div class="error-banner">Failed to load: ' +
+                               escapeHtml(err.message || 'Unknown error') +
+                               '<br><a href="index.html">Go back</a></div>';
+        }
+      });
+  }
+
   $search.addEventListener('input', render);
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e2b8eb384248da',t:'MTc4MTg3NDA4NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

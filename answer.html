@@ -5,19 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0a0f" />
 <meta name="color-scheme" content="dark" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Q&amp;A" />
-<meta name="application-name" content="Q&amp;A Student" />
+<meta name="HandheldFriendly" content="true" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
 <title>Answer</title>
 
-<link rel="manifest" href="manifest.webmanifest" />
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+<link rel="dns-prefetch" href="https://www.gstatic.com" />
 
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -27,7 +22,8 @@
 <div class="answer-page" id="answerPage">
   <div class="answer-header">
     <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
-    <div class="answer-counter" id="counter">1 / 1</div>
+    <div class="answer-counter" id="counter">…</div>
+    <div class="update-pill" id="updatePill">Updating…</div>
   </div>
   <div class="answer-body" id="body">
     <div class="answer-type" id="type"></div>
@@ -43,29 +39,35 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
 <script src="shared.js"></script>
 <script>
 (function () {
-  const { db, escapeHtml, getParam, buildUrl, showToast } = window.APP;
-  const classId = getParam('classId');
-  const subjectId = getParam('subjectId');
-  const chapterId = getParam('chapterId');
-  const qId = getParam('qId');
+  var APP = window.APP;
+  var Store = APP.Store;
+  var escapeHtml = APP.escapeHtml;
+  var getParam = APP.getParam;
+  var buildUrl = APP.buildUrl;
+  var showToast = APP.showToast;
+  var refreshSlice = APP.refreshSlice;
+  var setUpdating = APP.setUpdating;
 
-  const $backLink = document.getElementById('backLink');
-  const $counter = document.getElementById('counter');
-  const $body = document.getElementById('body');
-  const $type = document.getElementById('type');
-  const $question = document.getElementById('question');
-  const $text = document.getElementById('text');
-  const $prev = document.getElementById('prevBtn');
-  const $next = document.getElementById('nextBtn');
-  const $copy = document.getElementById('copyBtn');
+  var classId = getParam('classId');
+  var subjectId = getParam('subjectId');
+  var chapterId = getParam('chapterId');
+  var qId = getParam('qId');
+
+  var $backLink = document.getElementById('backLink');
+  var $counter = document.getElementById('counter');
+  var $body = document.getElementById('body');
+  var $type = document.getElementById('type');
+  var $question = document.getElementById('question');
+  var $text = document.getElementById('text');
+  var $prev = document.getElementById('prevBtn');
+  var $next = document.getElementById('nextBtn');
+  var $copy = document.getElementById('copyBtn');
 
   function showError(html) {
-    $body.innerHTML = `<div class="error-banner" style="margin-top:40px;">${html}</div>`;
+    $body.innerHTML = '<div class="error-banner" style="margin-top:40px;">' + html + '</div>';
     $counter.textContent = '';
     $prev.disabled = $next.disabled = true;
     $prev.classList.add('disabled'); $next.classList.add('disabled');
@@ -77,45 +79,45 @@
     showError('Missing parameters.<br><a href="index.html">Go back to Classes</a>');
     return;
   }
+  $backLink.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
 
-  $backLink.href = buildUrl('questions.html', { classId, subjectId, chapterId });
+  var flat = [];
+  var idx = -1;
 
-  let flat = []; // [{id, type, question, answer}]
-  let idx = 0;
+  function buildFlat(rawQuestions) {
+    var ids = Object.keys(rawQuestions || {});
+    return ids.map(function (id) {
+      return {
+        id: id,
+        type: String((rawQuestions[id] && rawQuestions[id].type) || 'General').trim(),
+        question: (rawQuestions[id] && rawQuestions[id].question) || '',
+        answer: (rawQuestions[id] && rawQuestions[id].answer) || ''
+      };
+    });
+  }
 
-  Promise.all([
-    db.ref(`/classes/${classId}/subjects/${subjectId}/chapters/${chapterId}/questions`).once('value')
-  ]).then(([qsSnap]) => {
-    const raw = qsSnap.val() || {};
-
-    // Preserve original Firebase key order so the navigation order is stable
-    const ids = Object.keys(raw);
-    const items = ids.map(id => ({
-      id,
-      type: (raw[id].type || 'General').toString().trim(),
-      question: raw[id].question || '',
-      answer: raw[id].answer || ''
-    }));
-
-    // Keep the on-disk order (push IDs are time-ordered, so this is the creation order)
-    flat = items;
-
-    idx = flat.findIndex(q => q.id === qId);
-    if (idx === -1) {
-      showError('This question no longer exists.<br><a href="' + buildUrl('questions.html', { classId, subjectId, chapterId }) + '">Back to Questions</a>');
-      return;
-    }
+  function tryRenderFromCache() {
+    var tree = Store.getTree();
+    var raw = tree
+      && tree[classId]
+      && tree[classId].subjects
+      && tree[classId].subjects[subjectId]
+      && tree[classId].subjects[subjectId].chapters
+      && tree[classId].subjects[subjectId].chapters[chapterId]
+      && tree[classId].subjects[subjectId].chapters[chapterId].questions;
+    if (!raw) return false;
+    flat = buildFlat(raw);
+    idx = flat.findIndex(function (q) { return q.id === qId; });
+    if (idx === -1) return false;
     show(idx);
-  }).catch(err => {
-    showError('Failed to load: ' + escapeHtml(err.message) + '<br><a href="index.html">Go back</a>');
-  });
+    return true;
+  }
 
   function show(i) {
     idx = i;
-    const q = flat[idx];
+    var q = flat[idx];
     if (!q) return;
 
-    // Fade transition
     $body.classList.remove('fade-slide');
     void $body.offsetWidth;
     $body.classList.add('fade-slide');
@@ -123,7 +125,7 @@
     $type.textContent = q.type || 'General';
     $question.textContent = q.question || '';
     $text.textContent = q.answer || '';
-    $counter.textContent = `${idx + 1} / ${flat.length}`;
+    $counter.textContent = (idx + 1) + ' / ' + flat.length;
     $prev.disabled = idx === 0;
     $next.disabled = idx === flat.length - 1;
     $prev.classList.toggle('disabled', idx === 0);
@@ -133,16 +135,56 @@
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  $prev.addEventListener('click', () => { if (idx > 0) show(idx - 1); });
-  $next.addEventListener('click', () => { if (idx < flat.length - 1) show(idx + 1); });
+  /* STEP 1: render from cache */
+  var cachedOk = tryRenderFromCache();
+  if (!cachedOk) {
+    showError('Loading…');
+    $body.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
+  }
 
-  $copy.addEventListener('click', async () => {
-    const text = $text.textContent || '';
+  /* STEP 2: refresh the questions slice */
+  if (navigator.onLine) {
+    setUpdating(true);
+    refreshSlice('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + chapterId + '/questions')
+      .then(function (raw) {
+        setUpdating(false);
+        if (raw === null) {
+          if (!cachedOk) {
+            showError('This chapter no longer exists.<br>' +
+                      '<a href="index.html">Go back to Classes</a>');
+          }
+          return;
+        }
+        flat = buildFlat(raw);
+        var newIdx = flat.findIndex(function (q) { return q.id === qId; });
+        if (newIdx === -1) {
+          showError('This question no longer exists.<br>' +
+                    '<a href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId }) +
+                    '">Back to Questions</a>');
+          return;
+        }
+        idx = newIdx;
+        show(idx);
+      })
+      .catch(function (err) {
+        setUpdating(false);
+        if (!cachedOk) {
+          showError('Failed to load: ' + escapeHtml(err.message || 'Unknown error') +
+                    '<br><a href="index.html">Go back</a>');
+        }
+      });
+  }
+
+  $prev.addEventListener('click', function () { if (idx > 0) show(idx - 1); });
+  $next.addEventListener('click', function () { if (idx < flat.length - 1) show(idx + 1); });
+
+  $copy.addEventListener('click', async function () {
+    var text = $text.textContent || '';
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
       } else {
-        const ta = document.createElement('textarea');
+        var ta = document.createElement('textarea');
         ta.value = text;
         ta.style.position = 'fixed';
         ta.style.opacity = '0';
@@ -154,7 +196,7 @@
       $copy.classList.add('copied');
       $copy.textContent = 'Copied ✓';
       showToast('Answer copied');
-      setTimeout(() => {
+      setTimeout(function () {
         if ($copy.classList.contains('copied')) {
           $copy.classList.remove('copied');
           $copy.textContent = 'Copy';
@@ -165,29 +207,25 @@
     }
   });
 
-  // Swipe gestures (horizontal)
-  let sx = null, sy = null, st = 0;
-  document.addEventListener('touchstart', e => {
+  /* Swipe gestures (Android primary nav). */
+  var sx = null, sy = null, st = 0;
+  document.addEventListener('touchstart', function (e) {
     if (e.touches.length !== 1) return;
-    sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now();
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    st = Date.now();
   }, { passive: true });
-  document.addEventListener('touchend', e => {
+  document.addEventListener('touchend', function (e) {
     if (sx === null) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - sx, dy = t.clientY - sy, dt = Date.now() - st;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - sx, dy = t.clientY - sy, dt = Date.now() - st;
     if (dt < 600 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
       if (dx < 0) { if (idx < flat.length - 1) show(idx + 1); }
       else         { if (idx > 0) show(idx - 1); }
     }
     sx = sy = null;
   }, { passive: true });
-
-  // Keyboard nav (desktop / external keyboard)
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft' && idx > 0) show(idx - 1);
-    if (e.key === 'ArrowRight' && idx < flat.length - 1) show(idx + 1);
-  });
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e2b960eee13aeb',t:'MTc4MTg3NDEwNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

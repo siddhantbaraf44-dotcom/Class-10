@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161624"/>
+      <stop offset="1" stop-color="#0a0a0f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#2a3299" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#2a3299" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <!-- Background -->
+    <rect x="0" y="0" width="512" height="512" fill="url(#bg)"/>
+
+    <!-- Subtle radial glow behind Q -->
+    <rect x="0" y="0" width="512" height="512" fill="url(#glow)"/>
+
+    <!-- The "Q" letter as a thick white ring with hollow center -->
+    <!-- Outer disc -->
+    <circle cx="256" cy="232" r="132" fill="#ffffff"/>
+    <!-- Inner cutout (matches background gradient start) -->
+    <circle cx="256" cy="232" r="78" fill="#161624"/>
+
+    <!-- Tail of Q (diagonal stroke from bottom-right of Q going down-right) -->
+    <rect x="328" y="312" width="120" height="44" rx="22" ry="22"
+          transform="rotate(45 328 312)"
+          fill="#6c7cff"/>
+
+    <!-- Accent dot inside the Q's hole -->
+    <circle cx="256" cy="232" r="20" fill="#6c7cff"/>
+  </g>
+</svg>

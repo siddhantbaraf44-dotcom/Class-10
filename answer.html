@@ -26,14 +26,15 @@
     <div class="update-pill" id="updatePill">Updating…</div>
   </div>
   <div class="answer-body" id="body">
-    <div class="answer-type" id="type"></div>
-    <div class="answer-question" id="question"></div>
-    <div class="answer-text" id="text"></div>
+    <div class="spinner-wrap" id="answerLoader">
+      <div class="spinner"></div>
+      <div>Loading answer…</div>
+    </div>
   </div>
   <div class="answer-footer">
-    <button class="nav-btn" id="prevBtn">‹ Prev</button>
-    <button class="copy-btn" id="copyBtn">Copy</button>
-    <button class="nav-btn primary" id="nextBtn">Next ›</button>
+    <button class="nav-btn disabled" id="prevBtn" disabled>‹ Prev</button>
+    <button class="copy-btn" id="copyBtn" disabled style="opacity:0.4;">Copy</button>
+    <button class="nav-btn primary disabled" id="nextBtn" disabled>Next ›</button>
   </div>
 </div>
 
@@ -116,7 +117,7 @@
     var q = flat[idx];
     if (!q) return;
 
-    if (!$type.parentNode) {
+    if (!$type || !$type.parentNode) {
       $body.innerHTML = '<div class="answer-type" id="type"></div>' +
                         '<div class="answer-question" id="question"></div>' +
                         '<div class="answer-text" id="text"></div>';

@@ -2,7 +2,7 @@
   "name": "Q&A Student",
   "short_name": "Q&A",
   "description": "Browse educational questions and answers by class, subject and chapter.",
-  "start_url": "./classes.html",
+  "start_url": "./index.html",
   "scope": "./",
   "id": "/qa-student/",
   "display": "standalone",

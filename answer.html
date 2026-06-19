@@ -11,8 +11,8 @@
 <title>Answer</title>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
-<link rel="dns-prefetch" href="https://www.gstatic.com" />
+<link rel="preconnect" href="https://rosho-c2d11-default-rtdb.firebaseio.com" crossorigin />
+<link rel="dns-prefetch" href="https://rosho-c2d11-default-rtdb.firebaseio.com" />
 
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -43,12 +43,11 @@
 <script>
 (function () {
   var APP = window.APP;
-  var Store = APP.Store;
   var escapeHtml = APP.escapeHtml;
   var getParam = APP.getParam;
   var buildUrl = APP.buildUrl;
   var showToast = APP.showToast;
-  var refreshSlice = APP.refreshSlice;
+  var readData = APP.readData;
   var setUpdating = APP.setUpdating;
 
   var classId = getParam('classId');
@@ -66,13 +65,33 @@
   var $next = document.getElementById('nextBtn');
   var $copy = document.getElementById('copyBtn');
 
+  var flat = [];
+  var idx = -1;
+
+  function disableFooter() {
+    $prev.disabled = true;
+    $next.disabled = true;
+    $prev.classList.add('disabled');
+    $next.classList.add('disabled');
+    $copy.disabled = true;
+    $copy.style.opacity = '0.4';
+  }
+
+  function enableCopy() {
+    $copy.disabled = false;
+    $copy.style.opacity = '';
+  }
+
   function showError(html) {
     $body.innerHTML = '<div class="error-banner" style="margin-top:40px;">' + html + '</div>';
     $counter.textContent = '';
-    $prev.disabled = $next.disabled = true;
-    $prev.classList.add('disabled'); $next.classList.add('disabled');
-    $copy.disabled = true;
-    $copy.style.opacity = '0.4';
+    disableFooter();
+  }
+
+  function showSpinner() {
+    $body.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div>Loading answer…</div></div>';
+    $counter.textContent = '';
+    disableFooter();
   }
 
   if (!classId || !subjectId || !chapterId || !qId) {
@@ -81,12 +100,8 @@
   }
   $backLink.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
 
-  var flat = [];
-  var idx = -1;
-
   function buildFlat(rawQuestions) {
-    var ids = Object.keys(rawQuestions || {});
-    return ids.map(function (id) {
+    return Object.keys(rawQuestions || {}).map(function (id) {
       return {
         id: id,
         type: String((rawQuestions[id] && rawQuestions[id].type) || 'General').trim(),
@@ -96,27 +111,19 @@
     });
   }
 
-  function tryRenderFromCache() {
-    var tree = Store.getTree();
-    var raw = tree
-      && tree[classId]
-      && tree[classId].subjects
-      && tree[classId].subjects[subjectId]
-      && tree[classId].subjects[subjectId].chapters
-      && tree[classId].subjects[subjectId].chapters[chapterId]
-      && tree[classId].subjects[subjectId].chapters[chapterId].questions;
-    if (!raw) return false;
-    flat = buildFlat(raw);
-    idx = flat.findIndex(function (q) { return q.id === qId; });
-    if (idx === -1) return false;
-    show(idx);
-    return true;
-  }
-
   function show(i) {
     idx = i;
     var q = flat[idx];
     if (!q) return;
+
+    if (!$type.parentNode) {
+      $body.innerHTML = '<div class="answer-type" id="type"></div>' +
+                        '<div class="answer-question" id="question"></div>' +
+                        '<div class="answer-text" id="text"></div>';
+      $type = document.getElementById('type');
+      $question = document.getElementById('question');
+      $text = document.getElementById('text');
+    }
 
     $body.classList.remove('fade-slide');
     void $body.offsetWidth;
@@ -130,48 +137,42 @@
     $next.disabled = idx === flat.length - 1;
     $prev.classList.toggle('disabled', idx === 0);
     $next.classList.toggle('disabled', idx === flat.length - 1);
+    enableCopy();
     $copy.classList.remove('copied');
     $copy.textContent = 'Copy';
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
-  /* STEP 1: render from cache */
-  var cachedOk = tryRenderFromCache();
-  if (!cachedOk) {
-    showError('Loading…');
-    $body.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
-  }
+  function loadAnswer() {
+    if (!navigator.onLine) {
+      showError('You are offline. Please connect to the internet and reload.<br><a href="index.html">Go back to Classes</a>');
+      return;
+    }
 
-  /* STEP 2: refresh the questions slice */
-  if (navigator.onLine) {
+    showSpinner();
     setUpdating(true);
-    refreshSlice('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + chapterId + '/questions')
+    readData('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + chapterId + '/questions')
       .then(function (raw) {
         setUpdating(false);
         if (raw === null) {
-          if (!cachedOk) {
-            showError('This chapter no longer exists.<br>' +
-                      '<a href="index.html">Go back to Classes</a>');
-          }
+          showError('This chapter does not exist or has no questions.<br>' +
+                    '<a href="index.html">Go back to Classes</a>');
           return;
         }
         flat = buildFlat(raw);
         var newIdx = flat.findIndex(function (q) { return q.id === qId; });
         if (newIdx === -1) {
-          showError('This question no longer exists.<br>' +
+          showError('This question does not exist.<br>' +
                     '<a href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId }) +
                     '">Back to Questions</a>');
           return;
         }
-        idx = newIdx;
-        show(idx);
+        show(newIdx);
       })
       .catch(function (err) {
         setUpdating(false);
-        if (!cachedOk) {
-          showError('Failed to load: ' + escapeHtml(err.message || 'Unknown error') +
-                    '<br><a href="index.html">Go back</a>');
-        }
+        showError('Failed to load answer: ' + escapeHtml(err.message || 'Unknown error') +
+                  '<br><a href="index.html">Go back</a>');
       });
   }
 
@@ -207,7 +208,6 @@
     }
   });
 
-  /* Swipe gestures (Android primary nav). */
   var sx = null, sy = null, st = 0;
   document.addEventListener('touchstart', function (e) {
     if (e.touches.length !== 1) return;
@@ -225,6 +225,8 @@
     }
     sx = sy = null;
   }, { passive: true });
+
+  loadAnswer();
 })();
 </script>
 </body>

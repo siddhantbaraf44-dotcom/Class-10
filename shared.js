@@ -1,25 +1,21 @@
 /* ============================================================
-   shared.js — Q&A Student (v2.1, Android-optimized, with visible error reporting)
+   shared.js — Q&A Student (no localStorage)
 
-   - localStorage cache (key "qa:v1:tree", meta "qa:v1:meta")
-   - URL helpers, HTML escaping, toast
-   - Lazy Firebase SDK loader (dynamic <script async>, non-blocking)
-   - refreshTree() / refreshSlice(path) — both write-through to cache
-   - Global error handler that shows a red banner at the top of the page
-     if ANY uncaught error occurs (instead of failing silently)
-
-   No service worker, no PWA, no auth.
+   - No browser localStorage cache: every page reads fresh data from Firebase.
+   - Uses Firebase Realtime Database REST API for fast read-only loading.
+   - Loads only the small slice each page needs where possible.
+   - Adds request timeout + visible error banners so the UI never spins forever.
+   - Keeps URL helpers, HTML escaping, toast, and online/offline indicator.
    ============================================================ */
 (function () {
-  /* ---------- Global error handler ----------
-     Any uncaught error (in this file or any page script that runs after)
-     surfaces as a visible red banner at the top of the page so we never
-     fail silently again. */
+  /* ---------- Global error handler ---------- */
   function _showErrorBanner(label, err) {
     try {
       console.error('[Q&A]', label, err);
       var body = document.body;
       if (!body) return;
+      var old = document.getElementById('qaFatalError');
+      if (old) old.remove();
       var b = document.createElement('div');
       b.id = 'qaFatalError';
       b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;' +
@@ -41,71 +37,8 @@
   try {
     window.APP = window.APP || {};
 
-    /* ---------- localStorage cache ---------- */
-    var TREE_KEY = 'qa:v1:tree';
-    var META_KEY = 'qa:v1:meta';
-
-    function _lsGet(key) {
-      try { return JSON.parse(localStorage.getItem(key) || 'null'); }
-      catch (e) { return null; }
-    }
-    function _lsSet(key, value) {
-      try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-      catch (e) { return false; }
-    }
-    function _lsDel(key) {
-      try { localStorage.removeItem(key); } catch (e) {}
-    }
-    function _setPath(obj, parts, value) {
-      var cur = obj;
-      for (var i = 0; i < parts.length - 1; i++) {
-        var p = parts[i];
-        if (cur[p] == null || typeof cur[p] !== 'object') cur[p] = {};
-        cur = cur[p];
-      }
-      cur[parts[parts.length - 1]] = value;
-    }
-    /* The cached tree's root IS Firebase's /classes path, so a path like
-       "/classes/C10/subjects" becomes just ["C10","subjects"]. */
-    function _normalizePath(path) {
-      var s = String(path || '').replace(/^\/+/, '');
-      if (s.indexOf('classes/') === 0) s = s.slice('classes/'.length);
-      else if (s === 'classes') s = '';
-      return s.split('/').filter(Boolean);
-    }
-
-    var Store = {
-      getTree: function () { return _lsGet(TREE_KEY); },
-      setTree: function (data) {
-        var ok = _lsSet(TREE_KEY, data);
-        _lsSet(META_KEY, { t: Date.now() });
-        return ok;
-      },
-      ageMs: function () {
-        var m = _lsGet(META_KEY);
-        return m && m.t ? Date.now() - m.t : Infinity;
-      },
-      getBranch: function (path) {
-        var tree = _lsGet(TREE_KEY);
-        if (!tree) return null;
-        var parts = _normalizePath(path);
-        var cur = tree;
-        for (var i = 0; i < parts.length; i++) {
-          if (cur == null) return null;
-          cur = cur[parts[i]];
-        }
-        return cur == null ? null : cur;
-      },
-      setBranch: function (path, value) {
-        var tree = _lsGet(TREE_KEY) || {};
-        var parts = _normalizePath(path);
-        if (!parts.length) return;
-        _setPath(tree, parts, value);
-        this.setTree(tree);
-      },
-      clear: function () { _lsDel(TREE_KEY); _lsDel(META_KEY); }
-    };
-    window.APP.Store = Store;
+    var DB_URL = 'https://rosho-c2d11-default-rtdb.firebaseio.com';
+    var REQUEST_TIMEOUT_MS = 12000;
 
     /* ---------- DOM helpers ---------- */
     function escapeHtml(s) {
@@ -132,77 +65,147 @@
       var el = document.getElementById('updatePill');
       if (el) el.classList.toggle('show', !!on);
     }
+    function showContentError(el, message, backHtml) {
+      if (!el) return;
+      el.innerHTML = '<div class="error-banner">' + escapeHtml(message) +
+                     (backHtml || '') + '</div>';
+    }
+
+    /* ---------- Firebase REST helpers ---------- */
+    function _withTimeout(promise, label) {
+      var timer;
+      var timeout = new Promise(function (_, reject) {
+        timer = setTimeout(function () {
+          reject(new Error((label || 'Request') + ' timed out. Check your internet connection and Firebase rules.'));
+        }, REQUEST_TIMEOUT_MS);
+      });
+      return Promise.race([promise, timeout]).then(function (v) {
+        clearTimeout(timer);
+        return v;
+      }, function (err) {
+        clearTimeout(timer);
+        throw err;
+      });
+    }
+
+    function _toRestUrl(path, query) {
+      var cleaned = String(path || '/classes').replace(/^\/+|\/+$/g, '');
+      if (!cleaned) cleaned = 'classes';
+      var parts = cleaned.split('/').filter(Boolean).map(function (part) {
+        return encodeURIComponent(part);
+      });
+      var url = DB_URL + '/' + parts.join('/') + '.json';
+      if (query) {
+        var qs = new URLSearchParams(query).toString();
+        if (qs) url += '?' + qs;
+      }
+      return url;
+    }
+
+    function readData(path, query) {
+      if (!window.fetch) {
+        return Promise.reject(new Error('This browser is too old: fetch() is not supported.'));
+      }
+
+      var controller = window.AbortController ? new AbortController() : null;
+      var req = fetch(_toRestUrl(path, query), {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller ? controller.signal : undefined
+      }).then(function (res) {
+        if (!res.ok) {
+          throw new Error('Firebase read failed (' + res.status + ' ' + res.statusText + ')');
+        }
+        return res.json();
+      });
+
+      return _withTimeout(req, 'Firebase read').catch(function (err) {
+        if (controller && err && /timed out/i.test(err.message || '')) {
+          try { controller.abort(); } catch (e) {}
+        }
+        if (err && err.name === 'AbortError') {
+          throw new Error('Firebase read timed out. Check your internet connection.');
+        }
+        throw err;
+      });
+    }
+
+    function getName(value, fallback) {
+      if (value == null) return fallback || '';
+      if (typeof value === 'object' && value.name != null) return String(value.name);
+      return String(value);
+    }
+
+    function sortByName(items) {
+      return items.sort(function (a, b) {
+        return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true });
+      });
+    }
+
+    /* Reads only child keys first, then each child's /name.
+       This avoids downloading all nested chapters/questions just to render lists. */
+    function getChildSummaries(path) {
+      return readData(path, { shallow: true }).then(function (keysObj) {
+        var ids = Object.keys(keysObj || {});
+        if (!ids.length) return [];
+        return Promise.all(ids.map(function (id) {
+          return readData(path + '/' + id + '/name').then(function (name) {
+            return { id: id, name: getName(name, id) };
+          }, function () {
+            return { id: id, name: id };
+          });
+        })).then(sortByName);
+      });
+    }
+
+    function getClassSummaries() {
+      return getChildSummaries('/classes');
+    }
+
+    function getChapterSummaries(path) {
+      return readData(path, { shallow: true }).then(function (keysObj) {
+        var ids = Object.keys(keysObj || {});
+        if (!ids.length) return [];
+        return Promise.all(ids.map(function (id) {
+          return Promise.all([
+            readData(path + '/' + id + '/name').catch(function () { return id; }),
+            readData(path + '/' + id + '/questions', { shallow: true }).catch(function () { return null; })
+          ]).then(function (parts) {
+            var qKeys = parts[1] || {};
+            return {
+              id: id,
+              name: getName(parts[0], id),
+              qcount: Object.keys(qKeys).length
+            };
+          });
+        })).then(sortByName);
+      });
+    }
+
+    /* Compatibility names used by older pages/debug tools. These do not cache. */
+    function refreshTree() {
+      return readData('/classes').then(function (data) { return data || {}; });
+    }
+    function refreshSlice(path) {
+      return readData(path);
+    }
+
     Object.assign(window.APP, {
       escapeHtml: escapeHtml,
       showToast: showToast,
       getParam: getParam,
       buildUrl: buildUrl,
-      setUpdating: setUpdating
+      setUpdating: setUpdating,
+      showContentError: showContentError,
+      readData: readData,
+      getName: getName,
+      sortByName: sortByName,
+      getChildSummaries: getChildSummaries,
+      getClassSummaries: getClassSummaries,
+      getChapterSummaries: getChapterSummaries,
+      refreshTree: refreshTree,
+      refreshSlice: refreshSlice
     });
-
-    /* ---------- Lazy Firebase SDK loader ----------
-       SDKs are injected as <script async> after the initial render so they
-       never block the cached render. */
-    var _sdkReady = null;
-    var _cfg = {
-      apiKey: 'AIzaSyAqhYpUhIdH5r2-LAtkGpN696nRwzB5GQA',
-      authDomain: 'rosho-c2d11.firebaseapp.com',
-      databaseURL: 'https://rosho-c2d11-default-rtdb.firebaseio.com',
-      projectId: 'rosho-c2d11',
-      storageBucket: 'rosho-c2d11.firebasestorage.app',
-      messagingSenderId: '99652225033',
-      appId: '1:99652225033:web:8988f43c9e77c27338d0d8'
-    };
-    function _inject(src) {
-      return new Promise(function (resolve, reject) {
-        var s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        s.onload = function () { resolve(); };
-        s.onerror = function () { reject(new Error('Failed to load ' + src)); };
-        document.head.appendChild(s);
-      });
-    }
-    function loadFirebase() {
-      if (_sdkReady) return _sdkReady;
-      _sdkReady = (window.firebase && firebase.database)
-        ? Promise.resolve()
-        : Promise.all([
-            _inject('https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js'),
-            _inject('https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js')
-          ]).then(function () {
-            if (!firebase.apps.length) firebase.initializeApp(_cfg);
-            window.APP.db = firebase.database();
-          });
-      return _sdkReady;
-    }
-
-    /* ---------- Network helpers (write-through to cache) ---------- */
-    function refreshTree() {
-      return loadFirebase().then(function () {
-        return new Promise(function (resolve, reject) {
-          window.APP.db.ref('/classes').once('value', function (snap) {
-            var data = snap.val() || {};
-            Store.setTree(data);
-            resolve(data);
-          }, reject);
-        });
-      });
-    }
-    function refreshSlice(path) {
-      return loadFirebase().then(function () {
-        return new Promise(function (resolve, reject) {
-          window.APP.db.ref(path).once('value', function (snap) {
-            var v = snap.val();
-            Store.setBranch(path, v);
-            resolve(v);
-          }, reject);
-        });
-      });
-    }
-    window.APP.loadFirebase = loadFirebase;
-    window.APP.refreshTree = refreshTree;
-    window.APP.refreshSlice = refreshSlice;
 
     /* ---------- Online/offline indicator ---------- */
     function updateOnline() {
@@ -213,7 +216,7 @@
     window.addEventListener('offline', updateOnline);
     updateOnline();
 
-    console.log('[shared.js] ready — window.APP set, Store available');
+    console.log('[shared.js] ready — no localStorage, REST reads enabled');
   } catch (e) {
     _showErrorBanner('shared.js failed to initialize', e);
   }

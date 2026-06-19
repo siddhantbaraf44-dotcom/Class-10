@@ -11,8 +11,8 @@
 <title>Chapters</title>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
-<link rel="dns-prefetch" href="https://www.gstatic.com" />
+<link rel="preconnect" href="https://rosho-c2d11-default-rtdb.firebaseio.com" crossorigin />
+<link rel="dns-prefetch" href="https://rosho-c2d11-default-rtdb.firebaseio.com" />
 
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -45,11 +45,11 @@
 <script>
 (function () {
   var APP = window.APP;
-  var Store = APP.Store;
   var escapeHtml = APP.escapeHtml;
   var getParam = APP.getParam;
   var buildUrl = APP.buildUrl;
-  var refreshSlice = APP.refreshSlice;
+  var readData = APP.readData;
+  var getChapterSummaries = APP.getChapterSummaries;
   var setUpdating = APP.setUpdating;
 
   var classId = getParam('classId');
@@ -69,69 +69,60 @@
   $backLink.href = buildUrl('subjects.html', { classId: classId });
   $crumbClass.href = buildUrl('subjects.html', { classId: classId });
 
-  function renderFromTree(tree) {
-    var cls = tree && tree[classId];
-    if (!cls) return false;
-    var className = cls.name;
-    var sub = cls.subjects && cls.subjects[subjectId];
-    if (!sub) return false;
-    var subjectName = sub.name;
-    var chapters = sub.chapters || {};
-
+  function render(className, subjectName, chapters) {
     $title.textContent = subjectName;
     document.title = subjectName + ' — Chapters';
     $crumbClass.textContent = className;
     $crumbCurrent.textContent = subjectName;
 
-    var ids = Object.keys(chapters).sort(function (a, b) {
-      return String(chapters[a].name).localeCompare(
-        String(chapters[b].name), undefined, { numeric: true });
-    });
-    if (!ids.length) {
+    if (!chapters.length) {
       $content.innerHTML = '<div class="empty">No chapters available.</div>';
-      return true;
+      return;
     }
-    /* Render list immediately; counts filled in from cache if present. */
-    $content.innerHTML = '<div class="list">' + ids.map(function (id) {
-      var qcount = (chapters[id].questions)
-        ? Object.keys(chapters[id].questions).length : 0;
-      var countText = qcount === 0 ? '—'
-        : (qcount === 1 ? '1 question' : qcount + ' questions');
-      return '<a class="list-item" href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: id }) + '">' +
-             '<span>' + escapeHtml(chapters[id].name) + '</span>' +
+
+    $content.innerHTML = '<div class="list">' + chapters.map(function (ch) {
+      var qcount = ch.qcount || 0;
+      var countText = qcount === 0 ? '—' :
+        (qcount === 1 ? '1 question' : qcount + ' questions');
+      return '<a class="list-item" href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: ch.id }) + '">' +
+             '<span>' + escapeHtml(ch.name || ch.id) + '</span>' +
              '<span class="count">' + countText + '</span>' +
              '<span class="arrow">›</span></a>';
     }).join('') + '</div>';
-    return true;
   }
 
-  /* STEP 1: cache render */
-  var cached = Store.getTree();
-  var cachedOk = !!(cached && renderFromTree(cached));
-  if (!cachedOk) {
-    $content.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div>Loading chapters…</div></div>';
-  }
+  function loadChapters() {
+    if (!navigator.onLine) {
+      $content.innerHTML = '<div class="error-banner">You are offline. Please connect to the internet and reload.<br>' +
+                           '<a href="index.html">Go back to Classes</a></div>';
+      return;
+    }
 
-  /* STEP 2: refresh just this subject's slice */
-  if (navigator.onLine) {
     setUpdating(true);
-    refreshSlice('/classes/' + classId + '/subjects/' + subjectId).then(function (sub) {
+    Promise.all([
+      readData('/classes/' + classId + '/name'),
+      readData('/classes/' + classId + '/subjects/' + subjectId + '/name'),
+      getChapterSummaries('/classes/' + classId + '/subjects/' + subjectId + '/chapters')
+    ]).then(function (parts) {
       setUpdating(false);
-      if (sub === null && !cachedOk) {
-        $content.innerHTML = '<div class="error-banner">This subject no longer exists.<br>' +
+      var className = parts[0];
+      var subjectName = parts[1];
+      var chapters = parts[2] || [];
+      if (className == null || subjectName == null) {
+        $content.innerHTML = '<div class="error-banner">This class or subject does not exist.<br>' +
                              '<a href="index.html">Go back to Classes</a></div>';
         return;
       }
-      renderFromTree(Store.getTree());
+      render(String(className), String(subjectName), chapters);
     }).catch(function (err) {
       setUpdating(false);
-      if (!cachedOk) {
-        $content.innerHTML = '<div class="error-banner">Failed to load: ' +
-                             escapeHtml(err.message || 'Unknown error') +
-                             '<br><a href="index.html">Go back</a></div>';
-      }
+      $content.innerHTML = '<div class="error-banner">Failed to load chapters: ' +
+                           escapeHtml(err.message || 'Unknown error') +
+                           '<br><a href="index.html">Go back</a></div>';
     });
   }
+
+  loadChapters();
 })();
 </script>
 </body>

@@ -14,8 +14,8 @@
 <!-- Inline SVG favicon (no extra HTTP request). -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
 
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
-<link rel="dns-prefetch" href="https://www.gstatic.com" />
+<link rel="preconnect" href="https://rosho-c2d11-default-rtdb.firebaseio.com" crossorigin />
+<link rel="dns-prefetch" href="https://rosho-c2d11-default-rtdb.firebaseio.com" />
 
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -53,37 +53,37 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- shared.js loads synchronously BEFORE the page script so the cache
-     read happens during HTML parse, no extra round-trip. -->
+<!-- shared.js loads synchronously BEFORE the page script so helpers are ready. -->
 <script src="shared.js"></script>
 <script>
 (function () {
   var APP = window.APP;
-  var Store = APP.Store;
   var escapeHtml = APP.escapeHtml;
   var buildUrl = APP.buildUrl;
   var refreshTree = APP.refreshTree;
+  var getClassSummaries = APP.getClassSummaries;
   var setUpdating = APP.setUpdating;
 
   var $content = document.getElementById('content');
   var $search = document.getElementById('searchInput');
   var $clear = document.getElementById('searchClear');
 
+  var classes = [];
   var allData = null;
   var allQuestions = [];
+  var searchIndexPromise = null;
   var debounceTimer = null;
 
-  /* Build a flat search index from the /classes tree. */
   function buildIndex(data) {
     var items = [];
     Object.keys(data || {}).forEach(function (cId) {
-      var cName = (data[cId] && data[cId].name) || '';
+      var cName = (data[cId] && data[cId].name) || cId;
       var subs = (data[cId] && data[cId].subjects) || {};
       Object.keys(subs).forEach(function (sId) {
-        var sName = (subs[sId] && subs[sId].name) || '';
+        var sName = (subs[sId] && subs[sId].name) || sId;
         var chs = (subs[sId] && subs[sId].chapters) || {};
         Object.keys(chs).forEach(function (chId) {
-          var chName = (chs[chId] && chs[chId].name) || '';
+          var chName = (chs[chId] && chs[chId].name) || chId;
           var qs = (chs[chId] && chs[chId].questions) || {};
           Object.keys(qs).forEach(function (qId) {
             items.push({
@@ -106,20 +106,33 @@
   }
 
   function renderClassList() {
-    if (!allData) return;
-    var cIds = Object.keys(allData).sort(function (a, b) {
-      return String(allData[a].name).localeCompare(
-        String(allData[b].name), undefined, { numeric: true });
-    });
-    if (!cIds.length) {
+    if (!classes.length) {
       $content.innerHTML = '<div class="empty">No classes available yet.</div>';
       return;
     }
-    $content.innerHTML = '<div class="list">' + cIds.map(function (id) {
-      return '<a class="list-item" href="' + buildUrl('subjects.html', { classId: id }) + '">' +
-             '<span>' + escapeHtml(allData[id].name) + '</span>' +
+    $content.innerHTML = '<div class="list">' + classes.map(function (c) {
+      return '<a class="list-item" href="' + buildUrl('subjects.html', { classId: c.id }) + '">' +
+             '<span>' + escapeHtml(c.name || c.id) + '</span>' +
              '<span class="arrow">›</span></a>';
     }).join('') + '</div>';
+  }
+
+  function ensureSearchIndex() {
+    if (allData) return Promise.resolve(allData);
+    if (searchIndexPromise) return searchIndexPromise;
+
+    setUpdating(true);
+    searchIndexPromise = refreshTree().then(function (data) {
+      allData = data || {};
+      allQuestions = buildIndex(allData);
+      setUpdating(false);
+      return allData;
+    }).catch(function (err) {
+      setUpdating(false);
+      searchIndexPromise = null;
+      throw err;
+    });
+    return searchIndexPromise;
   }
 
   function doSearch() {
@@ -127,11 +140,25 @@
     var qLow = q.toLowerCase();
     $clear.style.display = q ? 'flex' : 'none';
 
-    if (!q) { renderClassList(); return; }
+    if (!q) {
+      renderClassList();
+      return;
+    }
+
+    if (!allData) {
+      $content.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div>Loading search index…</div></div>';
+      ensureSearchIndex().then(doSearch).catch(function (err) {
+        $content.innerHTML = '<div class="error-banner">Failed to search: ' +
+                             escapeHtml(err.message || 'Unknown error') + '</div>';
+      });
+      return;
+    }
+
     if (!allQuestions.length) {
       $content.innerHTML = '<div class="empty">No questions in database yet.</div>';
       return;
     }
+
     var filtered = allQuestions.filter(function (it) {
       return (it.question || '').toLowerCase().includes(qLow) ||
              (it.type || '').toLowerCase().includes(qLow);
@@ -142,7 +169,6 @@
       return;
     }
 
-    /* Group by chapter, preserve first-appearance order. */
     var groups = new Map();
     filtered.forEach(function (it) {
       var key = it.classId + '||' + it.subjectId + '||' + it.chapterId;
@@ -189,44 +215,27 @@
     $content.innerHTML = html;
   }
 
-  /* ===== Apply tree to UI ===== */
-  function renderWith(data, prevSig) {
-    var sig = JSON.stringify(data).length; /* cheap pre-check */
-    allData = data;
-    allQuestions = buildIndex(data);
-    /* Restore search query from URL hash. */
-    var m = (window.location.hash || '').match(/^#q=(.*)$/);
-    if (m && m[1]) { try { $search.value = decodeURIComponent(m[1]); } catch (e) {} }
-    doSearch();
-  }
+  function loadClasses() {
+    if (!navigator.onLine) {
+      $content.innerHTML = '<div class="error-banner">You are offline. Please connect to the internet and reload.</div>';
+      return;
+    }
 
-  /* ===== STEP 1: Render from localStorage cache (synchronous, instant) ===== */
-  var cached = Store.getTree();
-  if (cached) {
-    renderWith(cached);
-  } else {
-    $content.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div>Loading…</div></div>';
-  }
-
-  /* ===== STEP 2: Background refresh from Firebase (non-blocking) ===== */
-  if (navigator.onLine) {
     setUpdating(true);
-    refreshTree().then(function (fresh) {
+    getClassSummaries().then(function (list) {
       setUpdating(false);
-      /* Only re-render if the data actually changed. */
-      if (JSON.stringify(fresh) !== JSON.stringify(allData)) {
-        renderWith(fresh);
-      }
+      classes = list || [];
+
+      var m = (window.location.hash || '').match(/^#q=(.*)$/);
+      if (m && m[1]) { try { $search.value = decodeURIComponent(m[1]); } catch (e) {} }
+      doSearch();
     }).catch(function (err) {
       setUpdating(false);
-      if (!cached) {
-        $content.innerHTML = '<div class="error-banner">Failed to load: ' +
-                             escapeHtml(err.message || 'Unknown error') + '</div>';
-      }
+      $content.innerHTML = '<div class="error-banner">Failed to load classes: ' +
+                           escapeHtml(err.message || 'Unknown error') + '</div>';
     });
   }
 
-  /* ===== Search input wiring ===== */
   $search.addEventListener('input', function () {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(function () {
@@ -239,7 +248,11 @@
     }, 180);
   });
   $search.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { $search.value = ''; doSearch(); }
+    if (e.key === 'Escape') {
+      $search.value = '';
+      history.replaceState(null, '', window.location.pathname);
+      doSearch();
+    }
   });
   $clear.addEventListener('click', function () {
     $search.value = '';
@@ -247,6 +260,8 @@
     doSearch();
     $search.focus();
   });
+
+  loadClasses();
 })();
 </script>
 </body>

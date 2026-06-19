@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Firebase Test</title>
+<style>
+  body { font-family: -apple-system, monospace; background:#0a0a0f; color:#e6e6ec; padding:20px; line-height:1.55; }
+  .ok { color:#6ddc91; } .err { color:#ff8a96; } .warn { color:#ffd47a; } .info { color:#8a8fff; }
+  pre { background:#14141c; padding:12px; border-radius:8px; white-space:pre-wrap; word-break:break-word; max-height:300px; overflow:auto; }
+  h1 { font-size:18px; margin-top:0; }
+  h2 { font-size:14px; color:#8a8fff; margin:18px 0 6px; text-transform:uppercase; letter-spacing:.5px; }
+  .step { padding:8px 12px; border-radius:8px; margin-bottom:6px; border:1px solid #1f1f2a; background:#14141c; }
+  .step.pending { opacity:0.6; }
+</style>
+</head>
+<body>
+<h1>Firebase Connection Diagnostic</h1>
+<div id="out"></div>
+
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
+<script>
+const out = document.getElementById('out');
+const cfg = {
+  apiKey: "AIzaSyAqhYpUhIdH5r2-LAtkGpN696nRwzB5GQA",
+  authDomain: "rosho-c2d11.firebaseapp.com",
+  databaseURL: "https://rosho-c2d11-default-rtdb.firebaseio.com",
+  projectId: "rosho-c2d11"
+};
+
+function step(text, kind) {
+  const d = document.createElement('div');
+  d.className = 'step ' + (kind || 'pending');
+  d.innerHTML = text;
+  out.appendChild(d);
+  return d;
+}
+function logPre(parentEl, obj) {
+  const pre = document.createElement('pre');
+  pre.textContent = JSON.stringify(obj, null, 2);
+  parentEl.appendChild(pre);
+}
+
+const s1 = step('1. Loading Firebase SDK from gstatic.com…');
+setTimeout(() => {
+  if (typeof firebase === 'undefined') {
+    s1.classList.remove('pending'); s1.classList.add('err');
+    s1.innerHTML += '<br><b>FAIL:</b> firebase global is undefined. gstatic.com may be blocked.';
+    return done();
+  }
+  s1.classList.remove('pending'); s1.classList.add('ok');
+  s1.innerHTML += ' ✓ loaded';
+
+  const s2 = step('2. Initializing Firebase app…');
+  try {
+    firebase.initializeApp(cfg);
+    s2.classList.remove('pending'); s2.classList.add('ok');
+    s2.innerHTML += ' ✓ initialized';
+  } catch (e) {
+    s2.classList.remove('pending'); s2.classList.add('err');
+    s2.innerHTML += '<br><b>FAIL:</b> ' + e.message;
+    return done();
+  }
+
+  const s3 = step('3. Connecting to <code>' + cfg.databaseURL + '</code> …');
+  const db = firebase.database();
+  const start = Date.now();
+
+  db.ref('/.info/connected').on('value', snap => {
+    if (snap.val() === true) {
+      s3.classList.remove('pending'); s3.classList.add('ok');
+      s3.innerHTML += ' ✓ connected in ' + (Date.now() - start) + ' ms';
+      proceedToRead(db);
+    }
+  });
+
+  setTimeout(() => {
+    if (s3.classList.contains('pending')) {
+      s3.classList.remove('pending'); s3.classList.add('err');
+      s3.innerHTML += '<br><b>TIMEOUT:</b> No connection after 8 s';
+      done();
+    }
+  }, 8000);
+}, 100);
+
+function proceedToRead(db) {
+  const s4 = step('4. Reading /classes …');
+  db.ref('/classes').once('value', snap => {
+    s4.classList.remove('pending'); s4.classList.add('ok');
+    const data = snap.val();
+    if (data === null) {
+      s4.innerHTML += ' ✓ read OK — but database is <b>EMPTY</b> (no /classes node)';
+      done();
+      return;
+    }
+    const ids = Object.keys(data);
+    let total = 0;
+    ids.forEach(c => total += 1);
+    s4.innerHTML += ' ✓ read OK — found ' + ids.length + ' class(es): ' +
+                    ids.map(c => data[c].name || c).join(', ');
+    logPre(s4, data);
+
+    const s5 = step('5. Counting questions…');
+    let count = 0;
+    Object.keys(data).forEach(cId => {
+      const subs = data[cId].subjects || {};
+      Object.keys(subs).forEach(sId => {
+        const chs = subs[sId].chapters || {};
+        Object.keys(chs).forEach(chId => {
+          const qs = chs[chId].questions || {};
+          count += Object.keys(qs).length;
+        });
+      });
+    });
+    s5.classList.remove('pending'); s5.classList.add(count > 0 ? 'ok' : 'warn');
+    s5.innerHTML += count > 0 ? ' ✓ ' + count + ' questions total' :
+                                ' ⚠ no questions under any chapter';
+    done();
+  }, err => {
+    s4.classList.remove('pending'); s4.classList.add('err');
+    s4.innerHTML += '<br><b>READ FAILED:</b> ' + (err.code || '') + ' — ' + (err.message || err);
+    if (err.code && err.code.includes('permission')) {
+      s4.innerHTML += '<br><br><b>This means the rules block reading.</b><br>' +
+                      'Open Firebase Console → Realtime Database → Rules and check that ' +
+                      '<code>.read: true</code> is set at the <code>classes</code> level.';
+    }
+    done();
+  });
+}
+
+function done() {
+  const footer = document.createElement('div');
+  footer.className = 'step info';
+  footer.innerHTML = '<b>Done.</b> Copy/paste the whole page contents to the chat if you need help.';
+  out.appendChild(footer);
+}
+</script>
+</body></html>

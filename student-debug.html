@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0a0a0f" />
+<title>Student App — Debug</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  /* Error banner always-on-top */
+  #errBox {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: #2a1418; color: #ffb1b8;
+    border-bottom: 2px solid #ff8a96;
+    padding: 10px 14px; font-family: monospace;
+    font-size: 13px; z-index: 9999;
+    display: none; max-height: 50vh; overflow: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #errBox.show { display: block; }
+  #log { background:#0a0a0f; border:1px solid #1f1f2a; padding:10px;
+         border-radius:8px; font-family: monospace; font-size:12px;
+         color:#b6bcd0; white-space: pre-wrap; word-break: break-word;
+         margin: 12px 0; }
+</style>
+</head>
+<body>
+<div id="errBox"></div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-row"><h1 class="title">Student App — DEBUG</h1></div>
+    <div class="breadcrumb"><span class="current">Diagnostic</span></div>
+  </div>
+  <h2 style="font-size:14px;color:#8a8fff;margin:14px 0 6px;">LIVE LOG</h2>
+  <div id="log">starting…</div>
+
+  <h2 style="font-size:14px;color:#8a8fff;margin:14px 0 6px;">CLASS LIST (should show "Class 10")</h2>
+  <div id="content"><div class="spinner-wrap"><div class="spinner"></div><div>Loading…</div></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* === Capture every error and show in the red box at top === */
+var errBox = document.getElementById('errBox');
+function showError(label, e) {
+  console.error(label, e);
+  errBox.classList.add('show');
+  var msg = '❌ ' + label + '\n' + (e && e.stack ? e.stack : String(e)) + '\n\n';
+  errBox.textContent = msg + errBox.textContent;
+}
+window.addEventListener('error', function(ev) {
+  showError('window.error: ' + ev.message, ev.error || ev);
+});
+window.addEventListener('unhandledrejection', function(ev) {
+  showError('unhandledrejection', ev.reason);
+});
+
+/* === Live log === */
+var logEl = document.getElementById('log');
+function log() {
+  var line = Array.from(arguments).map(function(a) {
+    if (typeof a === 'object') {
+      try { return JSON.stringify(a); } catch (e) { return String(a); }
+    }
+    return String(a);
+  }).join(' ');
+  logEl.textContent += '\n' + new Date().toISOString().slice(11,19) + ' ' + line;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+/* === Load Firebase SDKs (compat, v12.14.0) === */
+log('Loading firebase-app-compat.js…');
+var s1 = document.createElement('script');
+s1.src = 'https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js';
+s1.async = false;
+s1.onload = function() {
+  log('  ✓ app SDK loaded');
+  var s2 = document.createElement('script');
+  s2.src = 'https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js';
+  s2.async = false;
+  s2.onload = function() {
+    log('  ✓ database SDK loaded');
+    initFirebase();
+  };
+  s2.onerror = function() { showError('Failed to load database SDK', new Error(s2.src)); };
+  document.head.appendChild(s2);
+};
+s1.onerror = function() { showError('Failed to load app SDK', new Error(s1.src)); };
+document.head.appendChild(s1);
+
+function initFirebase() {
+  try {
+    var cfg = {
+      apiKey: "AIzaSyAqhYpUhIdH5r2-LAtkGpN696nRwzB5GQA",
+      authDomain: "rosho-c2d11.firebaseapp.com",
+      databaseURL: "https://rosho-c2d11-default-rtdb.firebaseio.com",
+      projectId: "rosho-c2d11"
+    };
+    log('Initializing Firebase…');
+    firebase.initializeApp(cfg);
+    var db = firebase.database();
+    log('  ✓ Firebase initialized');
+
+    /* Connectivity */
+    log('Subscribing to /.info/connected…');
+    db.ref('/.info/connected').on('value', function(snap) {
+      log('  connected =', snap.val());
+    });
+
+    /* Read /classes */
+    log('Reading /classes…');
+    var start = Date.now();
+    db.ref('/classes').once('value', function(snap) {
+      log('  ✓ read OK in', (Date.now() - start) + 'ms');
+      var data = snap.val();
+      log('  data =', data);
+      renderClasses(data);
+    }, function(err) {
+      showError('READ FAILED', err);
+      log('  ✗ READ FAILED:', err.code, err.message);
+    });
+  } catch (e) {
+    showError('initFirebase threw', e);
+  }
+}
+
+function renderClasses(data) {
+  var $content = document.getElementById('content');
+  if (!data) {
+    $content.innerHTML = '<div class="empty">No classes available yet.</div>';
+    log('renderClasses: data is null — showing empty message');
+    return;
+  }
+  var ids = Object.keys(data);
+  log('renderClasses: ' + ids.length + ' class(es):', ids);
+
+  var html = '<div class="list">';
+  ids.forEach(function(id) {
+    var c = data[id];
+    var name = (c && c.name) || id;
+    var subjCount = c && c.subjects ? Object.keys(c.subjects).length : 0;
+    html += '<a class="list-item" href="subjects.html?classId=' + id + '">' +
+            '<span>' + name + '</span>' +
+            '<span class="count">' + subjCount + ' subjects</span>' +
+            '<span class="arrow">›</span></a>';
+  });
+  html += '</div>';
+  $content.innerHTML = html;
+  log('  ✓ rendered class list to #content');
+}
+</script>
+</body>
+</html>

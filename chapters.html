@@ -23,7 +23,10 @@
   <div class="header">
     <div class="header-row">
       <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
+      <a class="home-link" href="index.html" aria-label="Home">⌂</a>
+      <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title" id="pageTitle">Chapters</h1>
+      <a class="header-action" href="books.html">Books</a>
       <div class="update-pill" id="updatePill">Updating…</div>
     </div>
     <div class="breadcrumb" id="breadcrumb">
@@ -34,8 +37,14 @@
       <span class="current">…</span>
     </div>
   </div>
+
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" class="search-input" id="searchInput" placeholder="Search chapters…" />
+  </div>
+
   <div id="content">
-    <div class="spinner-wrap"><div class="spinner"></div><div>Loading chapters…</div></div>
+    <div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item"></div></div>
   </div>
 </div>
 
@@ -60,6 +69,10 @@
   var $crumbClass = document.getElementById('crumbClass');
   var $crumbCurrent = document.querySelector('#breadcrumb .current');
   var $content = document.getElementById('content');
+  var $search = document.getElementById('searchInput');
+  var allChapters = [];
+  var currentClassName = '';
+  var currentSubjectName = '';
 
   if (!classId || !subjectId) {
     $content.innerHTML = '<div class="error-banner">Missing class or subject.<br>' +
@@ -70,25 +83,41 @@
   $crumbClass.href = buildUrl('subjects.html', { classId: classId });
 
   function render(className, subjectName, chapters) {
+    currentClassName = className;
+    currentSubjectName = subjectName;
+    allChapters = chapters || [];
     $title.textContent = subjectName;
     document.title = subjectName + ' — Chapters';
     $crumbClass.textContent = className;
     $crumbCurrent.textContent = subjectName;
+    renderFiltered();
+  }
 
-    if (!chapters.length) {
+  function renderFiltered() {
+    var filter = ($search.value || '').trim().toLowerCase();
+    var chapters = filter ? allChapters.filter(function (ch) {
+      return String(ch.name || ch.id).toLowerCase().includes(filter);
+    }) : allChapters;
+
+    if (!allChapters.length) {
       $content.innerHTML = '<div class="empty">No chapters available.</div>';
       return;
     }
+    if (!chapters.length) {
+      $content.innerHTML = '<div class="empty">No chapters match your search.</div>';
+      return;
+    }
 
-    $content.innerHTML = '<div class="list">' + chapters.map(function (ch) {
-      var qcount = ch.qcount || 0;
-      var countText = qcount === 0 ? '—' :
-        (qcount === 1 ? '1 question' : qcount + ' questions');
-      return '<a class="list-item" href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: ch.id }) + '">' +
-             '<span>' + escapeHtml(ch.name || ch.id) + '</span>' +
-             '<span class="count">' + countText + '</span>' +
-             '<span class="arrow">›</span></a>';
-    }).join('') + '</div>';
+    $content.innerHTML = '<div class="page-meta">' + allChapters.length + ' chapter' + (allChapters.length === 1 ? '' : 's') + '</div>' +
+      '<div class="list">' + chapters.map(function (ch) {
+        var qcount = ch.qcount || 0;
+        var countText = qcount === 0 ? '—' :
+          (qcount === 1 ? '1 question' : qcount + ' questions');
+        return '<a class="list-item" href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: ch.id }) + '">' +
+               '<span>' + escapeHtml(ch.name || ch.id) + '</span>' +
+               '<span class="count">' + countText + '</span>' +
+               '<span class="arrow">›</span></a>';
+      }).join('') + '</div>';
   }
 
   function loadChapters() {
@@ -122,6 +151,7 @@
     });
   }
 
+  $search.addEventListener('input', renderFiltered);
   loadChapters();
 })();
 </script>

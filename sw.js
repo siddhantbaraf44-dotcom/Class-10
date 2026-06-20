@@ -13,6 +13,8 @@ const APP_SHELL = [
   './chapters.html',
   './questions.html',
   './answer.html',
+  './books.html',
+  './books-admin.html',
   './styles.css',
   './shared.js',
   './manifest.webmanifest',

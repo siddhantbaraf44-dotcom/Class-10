@@ -25,7 +25,9 @@
 <div id="app">
   <div class="header">
     <div class="header-row">
+      <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title">Classes</h1>
+      <a class="header-action" href="books.html">Books</a>
       <div class="update-pill" id="updatePill">Updating…</div>
     </div>
     <div class="breadcrumb"><span class="current">Classes</span></div>
@@ -46,8 +48,10 @@
     </div>
   </div>
 
+  <div class="board-filters" id="boardFilters" style="display:none;"></div>
+
   <div id="content">
-    <div class="spinner-wrap"><div class="spinner"></div><div>Loading…</div></div>
+    <div class="skeleton-heading"></div><div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
   </div>
 </div>
 
@@ -67,12 +71,14 @@
   var $content = document.getElementById('content');
   var $search = document.getElementById('searchInput');
   var $clear = document.getElementById('searchClear');
+  var $boardFilters = document.getElementById('boardFilters');
 
   var classes = [];
   var allData = null;
   var allQuestions = [];
   var searchIndexPromise = null;
   var debounceTimer = null;
+  var selectedBoard = 'all';
 
   function buildIndex(data) {
     var items = [];
@@ -105,16 +111,78 @@
     return items;
   }
 
+  function renderBoardFilters() {
+    var boards = [];
+    var seen = {};
+    classes.forEach(function (c) {
+      var board = (c.board || 'Classes').trim() || 'Classes';
+      if (!seen[board]) { seen[board] = true; boards.push({ title: board, order: Number(c.boardOrder == null ? 9999 : c.boardOrder) }); }
+    });
+    boards.sort(function (a, b) {
+      if (a.order !== b.order) return a.order - b.order;
+      return String(a.title).localeCompare(String(b.title), undefined, { numeric: true });
+    });
+    if (!boards.length || boards.length === 1) { $boardFilters.style.display = 'none'; return; }
+    $boardFilters.style.display = 'flex';
+    $boardFilters.innerHTML = '<button class="filter-chip ' + (selectedBoard === 'all' ? 'active' : '') + '" data-board="all">All</button>' +
+      boards.map(function (b) {
+        return '<button class="filter-chip ' + (selectedBoard === b.title ? 'active' : '') + '" data-board="' + escapeHtml(b.title) + '">' + escapeHtml(b.title) + '</button>';
+      }).join('');
+    Array.prototype.forEach.call($boardFilters.querySelectorAll('[data-board]'), function (btn) {
+      btn.addEventListener('click', function () {
+        selectedBoard = btn.getAttribute('data-board') || 'all';
+        renderBoardFilters();
+        renderClassList();
+      });
+    });
+  }
+
   function renderClassList() {
     if (!classes.length) {
       $content.innerHTML = '<div class="empty">No classes available yet.</div>';
       return;
     }
-    $content.innerHTML = '<div class="list">' + classes.map(function (c) {
-      return '<a class="list-item" href="' + buildUrl('subjects.html', { classId: c.id }) + '">' +
-             '<span>' + escapeHtml(c.name || c.id) + '</span>' +
-             '<span class="arrow">›</span></a>';
-    }).join('') + '</div>';
+
+    renderBoardFilters();
+    var groups = [];
+    var byBoard = {};
+    classes.forEach(function (c) {
+      var board = (c.board || 'Classes').trim() || 'Classes';
+      if (selectedBoard !== 'all' && board !== selectedBoard) return;
+      if (!byBoard[board]) {
+        byBoard[board] = { title: board, order: Number(c.boardOrder == null ? 9999 : c.boardOrder), items: [] };
+        groups.push(byBoard[board]);
+      }
+      byBoard[board].items.push(c);
+    });
+    groups.sort(function (a, b) {
+      if (a.order !== b.order) return a.order - b.order;
+      return String(a.title).localeCompare(String(b.title), undefined, { numeric: true });
+    });
+    if (!groups.length) {
+      selectedBoard = 'all';
+      renderClassList();
+      return;
+    }
+
+    $content.innerHTML = groups.map(function (g) {
+      g.items.sort(function (a, b) {
+        var ao = Number(a.order == null ? 9999 : a.order);
+        var bo = Number(b.order == null ? 9999 : b.order);
+        if (ao !== bo) return ao - bo;
+        return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true });
+      });
+      return '<section class="board-section">' +
+             '<div class="board-title">' + escapeHtml(g.title) + '</div>' +
+             '<div class="list">' + g.items.map(function (c) {
+               var sc = Number(c.subjectCount || 0);
+               var countText = sc ? (sc === 1 ? '1 subject' : sc + ' subjects') : '—';
+               return '<a class="list-item" href="' + buildUrl('subjects.html', { classId: c.id }) + '">' +
+                      '<span>' + escapeHtml(c.name || c.id) + '</span>' +
+                      '<span class="count">' + countText + '</span>' +
+                      '<span class="arrow">›</span></a>';
+             }).join('') + '</div></section>';
+    }).join('');
   }
 
   function ensureSearchIndex() {
@@ -144,9 +212,10 @@
       renderClassList();
       return;
     }
+    $boardFilters.style.display = 'none';
 
     if (!allData) {
-      $content.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div>Loading search index…</div></div>';
+      $content.innerHTML = '<div class="skeleton-heading"></div><div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>';
       ensureSearchIndex().then(doSearch).catch(function (err) {
         $content.innerHTML = '<div class="error-banner">Failed to search: ' +
                              escapeHtml(err.message || 'Unknown error') + '</div>';

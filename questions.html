@@ -23,7 +23,10 @@
   <div class="header">
     <div class="header-row">
       <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
+      <a class="home-link" href="index.html" aria-label="Home">⌂</a>
+      <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title" id="pageTitle">Questions</h1>
+      <a class="header-action" href="books.html">Books</a>
       <div class="update-pill" id="updatePill">Updating…</div>
     </div>
     <div class="breadcrumb" id="breadcrumb">
@@ -43,7 +46,7 @@
   </div>
 
   <div id="content">
-    <div class="spinner-wrap"><div class="spinner"></div><div>Loading questions…</div></div>
+    <div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
   </div>
 </div>
 
@@ -105,7 +108,8 @@
       $content.innerHTML = '<div class="empty">No questions in this chapter yet.</div>';
       return;
     }
-    var html = '';
+    var total = groups.reduce(function (sum, g) { return sum + g.items.length; }, 0);
+    var html = '<div class="page-meta">' + total + ' question' + (total === 1 ? '' : 's') + '</div>';
     var anyShown = false;
     groups.forEach(function (g) {
       var filtered = filter

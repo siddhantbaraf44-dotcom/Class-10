@@ -23,7 +23,10 @@
   <div class="header">
     <div class="header-row">
       <a class="back-link" href="index.html" aria-label="Back">‹</a>
+      <a class="home-link" href="index.html" aria-label="Home">⌂</a>
+      <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title" id="pageTitle">Subjects</h1>
+      <a class="header-action" href="books.html">Books</a>
       <div class="update-pill" id="updatePill">Updating…</div>
     </div>
     <div class="breadcrumb" id="breadcrumb">
@@ -32,8 +35,14 @@
       <span class="current">…</span>
     </div>
   </div>
+
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" class="search-input" id="searchInput" placeholder="Search subjects…" />
+  </div>
+
   <div id="content">
-    <div class="spinner-wrap"><div class="spinner"></div><div>Loading…</div></div>
+    <div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
   </div>
 </div>
 
@@ -55,6 +64,9 @@
   var $title = document.getElementById('pageTitle');
   var $crumbCurrent = document.querySelector('#breadcrumb .current');
   var $content = document.getElementById('content');
+  var $search = document.getElementById('searchInput');
+  var allSubjects = [];
+  var currentClassName = '';
 
   if (!classId) {
     $content.innerHTML = '<div class="error-banner">No class selected.<br>' +
@@ -64,20 +76,38 @@
   }
 
   function render(className, subjects) {
+    currentClassName = className;
+    allSubjects = subjects || [];
     $title.textContent = className;
     document.title = className + ' — Subjects';
     $crumbCurrent.textContent = className;
+    renderFiltered();
+  }
 
-    if (!subjects.length) {
+  function renderFiltered() {
+    var filter = ($search.value || '').trim().toLowerCase();
+    var subjects = filter ? allSubjects.filter(function (s) {
+      return String(s.name || s.id).toLowerCase().includes(filter);
+    }) : allSubjects;
+
+    if (!allSubjects.length) {
       $content.innerHTML = '<div class="empty">No subjects available.</div>';
       return;
     }
+    if (!subjects.length) {
+      $content.innerHTML = '<div class="empty">No subjects match your search.</div>';
+      return;
+    }
 
-    $content.innerHTML = '<div class="list">' + subjects.map(function (sub) {
-      return '<a class="list-item" href="' + buildUrl('chapters.html', { classId: classId, subjectId: sub.id }) + '">' +
-             '<span>' + escapeHtml(sub.name || sub.id) + '</span>' +
-             '<span class="arrow">›</span></a>';
-    }).join('') + '</div>';
+    $content.innerHTML = '<div class="page-meta">' + allSubjects.length + ' subject' + (allSubjects.length === 1 ? '' : 's') + '</div>' +
+      '<div class="list">' + subjects.map(function (sub) {
+        var cc = Number(sub.chapterCount || 0);
+        var countText = cc ? (cc === 1 ? '1 chapter' : cc + ' chapters') : '—';
+        return '<a class="list-item" href="' + buildUrl('chapters.html', { classId: classId, subjectId: sub.id }) + '">' +
+               '<span>' + escapeHtml(sub.name || sub.id) + '</span>' +
+               '<span class="count">' + countText + '</span>' +
+               '<span class="arrow">›</span></a>';
+      }).join('') + '</div>';
   }
 
   function loadSubjects() {
@@ -90,7 +120,13 @@
     setUpdating(true);
     Promise.all([
       readData('/classes/' + classId + '/name'),
-      getChildSummaries('/classes/' + classId + '/subjects')
+      getChildSummaries('/classes/' + classId + '/subjects').then(function (subjects) {
+        return Promise.all((subjects || []).map(function (sub) {
+          return readData('/classes/' + classId + '/subjects/' + sub.id + '/chapters', { shallow: true })
+            .then(function (keys) { sub.chapterCount = Object.keys(keys || {}).length; return sub; })
+            .catch(function () { sub.chapterCount = 0; return sub; });
+        }));
+      })
     ]).then(function (parts) {
       setUpdating(false);
       var className = parts[0];
@@ -109,6 +145,7 @@
     });
   }
 
+  $search.addEventListener('input', renderFiltered);
   loadSubjects();
 })();
 </script>

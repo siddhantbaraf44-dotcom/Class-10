@@ -22,18 +22,25 @@
 <div class="answer-page" id="answerPage">
   <div class="answer-header">
     <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
+    <a class="home-link" href="index.html" aria-label="Home">⌂</a>
+    <img src="icon.svg" alt="Q&A" class="site-logo" />
     <div class="answer-counter" id="counter">…</div>
+    <a class="header-action" href="books.html">Books</a>
     <div class="update-pill" id="updatePill">Updating…</div>
   </div>
   <div class="answer-body" id="body">
-    <div class="spinner-wrap" id="answerLoader">
-      <div class="spinner"></div>
-      <div>Loading answer…</div>
+    <div class="skeleton-list" id="answerLoader">
+      <div class="skeleton-heading"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item short"></div>
     </div>
   </div>
   <div class="answer-footer">
+    <a class="nav-btn" id="allQuestionsBtn" href="#">All Questions</a>
     <button class="nav-btn disabled" id="prevBtn" disabled>‹ Prev</button>
-    <button class="copy-btn" id="copyBtn" disabled style="opacity:0.4;">Copy</button>
+    <button class="copy-btn" id="copyBtn" disabled style="opacity:0.4;">Copy Answer</button>
+    <button class="copy-btn" id="copyQaBtn" disabled style="opacity:0.4;">Copy Q&A</button>
     <button class="nav-btn primary disabled" id="nextBtn" disabled>Next ›</button>
   </div>
 </div>
@@ -61,10 +68,13 @@
   var $body = document.getElementById('body');
   var $type = document.getElementById('type');
   var $question = document.getElementById('question');
+  var $imageWrap = document.getElementById('imageWrap');
   var $text = document.getElementById('text');
+  var $allQuestions = document.getElementById('allQuestionsBtn');
   var $prev = document.getElementById('prevBtn');
   var $next = document.getElementById('nextBtn');
   var $copy = document.getElementById('copyBtn');
+  var $copyQa = document.getElementById('copyQaBtn');
 
   var flat = [];
   var idx = -1;
@@ -76,11 +86,15 @@
     $next.classList.add('disabled');
     $copy.disabled = true;
     $copy.style.opacity = '0.4';
+    $copyQa.disabled = true;
+    $copyQa.style.opacity = '0.4';
   }
 
   function enableCopy() {
     $copy.disabled = false;
     $copy.style.opacity = '';
+    $copyQa.disabled = false;
+    $copyQa.style.opacity = '';
   }
 
   function showError(html) {
@@ -90,7 +104,7 @@
   }
 
   function showSpinner() {
-    $body.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div>Loading answer…</div></div>';
+    $body.innerHTML = '<div class="skeleton-list"><div class="skeleton-heading"></div><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>';
     $counter.textContent = '';
     disableFooter();
   }
@@ -100,16 +114,80 @@
     return;
   }
   $backLink.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
+  $allQuestions.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
+
+  function getImageUrls(q) {
+    var raw = [];
+    function add(v) {
+      if (!v) return;
+      if (Array.isArray(v)) { v.forEach(add); return; }
+      if (typeof v === 'object') {
+        if (v.url) add(v.url);
+        return;
+      }
+      String(v).split(/[\n,]+/).forEach(function (part) {
+        part = part.trim();
+        if (part) raw.push(part);
+      });
+    }
+    add(q.imageUrl);
+    add(q.imageURL);
+    add(q.image);
+    add(q.images);
+    add(q.imageUrls);
+    add(q.questionImageUrl);
+    add(q.answerImageUrl);
+    return raw.filter(function (url, idx, arr) {
+      return isSafeImageUrl(url) && arr.indexOf(url) === idx;
+    });
+  }
+
+  function isSafeImageUrl(url) {
+    return /^(https?:\/\/|data:image\/)/i.test(String(url || '').trim());
+  }
 
   function buildFlat(rawQuestions) {
     return Object.keys(rawQuestions || {}).map(function (id) {
+      var raw = rawQuestions[id] || {};
       return {
         id: id,
-        type: String((rawQuestions[id] && rawQuestions[id].type) || 'General').trim(),
-        question: (rawQuestions[id] && rawQuestions[id].question) || '',
-        answer: (rawQuestions[id] && rawQuestions[id].answer) || ''
+        type: String((raw && raw.type) || 'General').trim(),
+        question: (raw && raw.question) || '',
+        answer: (raw && raw.answer) || '',
+        imageUrls: getImageUrls(raw)
       };
     });
+  }
+
+  function renderImages(urls) {
+    if (!$imageWrap) return;
+    $imageWrap.innerHTML = '';
+    if (!urls || !urls.length) {
+      $imageWrap.classList.remove('show');
+      return;
+    }
+    urls.forEach(function (url, idx) {
+      var link = document.createElement('a');
+      link.className = 'answer-image-link';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+
+      var img = document.createElement('img');
+      img.className = 'answer-image';
+      img.src = url;
+      img.alt = 'Question image ' + (idx + 1);
+      img.loading = 'lazy';
+      img.onerror = function () {
+        var err = document.createElement('div');
+        err.className = 'answer-image-error';
+        err.textContent = 'Image failed to load: ' + url;
+        link.replaceWith(err);
+      };
+      link.appendChild(img);
+      $imageWrap.appendChild(link);
+    });
+    $imageWrap.classList.add('show');
   }
 
   function show(i) {
@@ -120,9 +198,11 @@
     if (!$type || !$type.parentNode) {
       $body.innerHTML = '<div class="answer-type" id="type"></div>' +
                         '<div class="answer-question" id="question"></div>' +
+                        '<div class="answer-image-list" id="imageWrap"></div>' +
                         '<div class="answer-text" id="text"></div>';
       $type = document.getElementById('type');
       $question = document.getElementById('question');
+      $imageWrap = document.getElementById('imageWrap');
       $text = document.getElementById('text');
     }
 
@@ -132,6 +212,7 @@
 
     $type.textContent = q.type || 'General';
     $question.textContent = q.question || '';
+    renderImages(q.imageUrls);
     $text.textContent = q.answer || '';
     $counter.textContent = (idx + 1) + ' / ' + flat.length;
     $prev.disabled = idx === 0;
@@ -140,7 +221,9 @@
     $next.classList.toggle('disabled', idx === flat.length - 1);
     enableCopy();
     $copy.classList.remove('copied');
-    $copy.textContent = 'Copy';
+    $copy.textContent = 'Copy Answer';
+    $copyQa.classList.remove('copied');
+    $copyQa.textContent = 'Copy Q&A';
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
@@ -180,30 +263,49 @@
   $prev.addEventListener('click', function () { if (idx > 0) show(idx - 1); });
   $next.addEventListener('click', function () { if (idx < flat.length - 1) show(idx + 1); });
 
-  $copy.addEventListener('click', async function () {
-    var text = $text.textContent || '';
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+  async function writeClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  }
+
+  function flashCopied(btn, label) {
+    btn.classList.add('copied');
+    btn.textContent = 'Copied ✓';
+    setTimeout(function () {
+      if (btn.classList.contains('copied')) {
+        btn.classList.remove('copied');
+        btn.textContent = label;
       }
-      $copy.classList.add('copied');
-      $copy.textContent = 'Copied ✓';
+    }, 1500);
+  }
+
+  $copy.addEventListener('click', async function () {
+    try {
+      await writeClipboard($text.textContent || '');
+      flashCopied($copy, 'Copy Answer');
       showToast('Answer copied');
-      setTimeout(function () {
-        if ($copy.classList.contains('copied')) {
-          $copy.classList.remove('copied');
-          $copy.textContent = 'Copy';
-        }
-      }, 1500);
+    } catch (e) {
+      showToast('Copy failed');
+    }
+  });
+
+  $copyQa.addEventListener('click', async function () {
+    var q = flat[idx] || {};
+    var text = 'Q: ' + (q.question || '') + '\n\nA: ' + (q.answer || '');
+    try {
+      await writeClipboard(text);
+      flashCopied($copyQa, 'Copy Q&A');
+      showToast('Question & answer copied');
     } catch (e) {
       showToast('Copy failed');
     }

@@ -159,7 +159,37 @@
     }
 
     function getClassSummaries() {
-      return getChildSummaries('/classes');
+      return readData('/classes', { shallow: true }).then(function (keysObj) {
+        var ids = Object.keys(keysObj || {});
+        if (!ids.length) return [];
+        return Promise.all(ids.map(function (id) {
+          return Promise.all([
+            readData('/classes/' + id + '/name').catch(function () { return id; }),
+            readData('/classes/' + id + '/board').catch(function () { return ''; }),
+            readData('/classes/' + id + '/boardOrder').catch(function () { return null; }),
+            readData('/classes/' + id + '/order').catch(function () { return null; }),
+            readData('/classes/' + id + '/subjects', { shallow: true }).catch(function () { return null; })
+          ]).then(function (parts) {
+            var subjectKeys = parts[4] || {};
+            return {
+              id: id,
+              name: getName(parts[0], id),
+              board: getName(parts[1], 'Classes') || 'Classes',
+              boardOrder: Number(parts[2] == null ? 9999 : parts[2]),
+              order: Number(parts[3] == null ? 9999 : parts[3]),
+              subjectCount: Object.keys(subjectKeys).length
+            };
+          });
+        })).then(function (items) {
+          return items.sort(function (a, b) {
+            if (a.boardOrder !== b.boardOrder) return a.boardOrder - b.boardOrder;
+            var bc = String(a.board).localeCompare(String(b.board), undefined, { numeric: true });
+            if (bc) return bc;
+            if (a.order !== b.order) return a.order - b.order;
+            return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true });
+          });
+        });
+      });
     }
 
     function getChapterSummaries(path) {

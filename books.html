@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0f" />
+<meta name="color-scheme" content="dark" />
+<meta name="description" content="Download official and reference books by board and class." />
+<title>Books</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://assemble-ab9ca-default-rtdb.firebaseio.com" crossorigin />
+<link rel="dns-prefetch" href="https://assemble-ab9ca-default-rtdb.firebaseio.com" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="offline-tag" id="offlineTag">OFFLINE</div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-row">
+      <a class="back-link" href="index.html" aria-label="Back">‹</a>
+      <a class="home-link" href="index.html" aria-label="Home">⌂</a>
+      <img src="icon.svg" alt="Q&A" class="site-logo" />
+      <h1 class="title">Books</h1>
+      <div class="update-pill" id="updatePill">Loading…</div>
+    </div>
+    <div class="breadcrumb">
+      <a href="index.html">Classes</a>
+      <span class="crumb-sep">›</span>
+      <span class="current">Books</span>
+    </div>
+  </div>
+
+  <div class="books-controls">
+    <label class="control-label" for="classSelect">Select class</label>
+    <select class="select-control" id="classSelect">
+      <option value="all">All classes</option>
+    </select>
+  </div>
+
+  <div id="content">
+    <div class="skeleton-heading"></div>
+    <div class="skeleton-list">
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item short"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var DB_URL = 'https://assemble-ab9ca-default-rtdb.firebaseio.com';
+  var TIMEOUT_MS = 12000;
+
+  var $content = document.getElementById('content');
+  var $classSelect = document.getElementById('classSelect');
+  var $updatePill = document.getElementById('updatePill');
+  var allClasses = [];
+  var selectedClass = 'all';
+
+  function escapeHtml(s) {
+    return (s == null ? '' : String(s))
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function setLoading(on) {
+    if ($updatePill) $updatePill.classList.toggle('show', !!on);
+  }
+
+  function updateOnline() {
+    var el = document.getElementById('offlineTag');
+    if (el) el.classList.toggle('show', !navigator.onLine);
+  }
+  window.addEventListener('online', updateOnline);
+  window.addEventListener('offline', updateOnline);
+  updateOnline();
+
+  function withTimeout(promise, label) {
+    var timer;
+    var timeout = new Promise(function (_, reject) {
+      timer = setTimeout(function () { reject(new Error((label || 'Request') + ' timed out')); }, TIMEOUT_MS);
+    });
+    return Promise.race([promise, timeout]).then(function (v) {
+      clearTimeout(timer); return v;
+    }, function (err) {
+      clearTimeout(timer); throw err;
+    });
+  }
+
+  function read(path) {
+    var cleaned = String(path || '').replace(/^\/+|\/+$/g, '');
+    var url = DB_URL + '/' + cleaned.split('/').filter(Boolean).map(encodeURIComponent).join('/') + '.json';
+    return withTimeout(fetch(url, { cache: 'no-store' }).then(function (res) {
+      if (!res.ok) throw new Error('Firebase read failed: ' + res.status + ' ' + res.statusText);
+      return res.json();
+    }), 'Firebase read');
+  }
+
+  function num(v, fallback) {
+    var n = Number(v);
+    return isFinite(n) ? n : fallback;
+  }
+
+  function sortBooks(obj) {
+    return Object.keys(obj || {}).map(function (id) {
+      var b = obj[id] || {};
+      b.id = id;
+      return b;
+    }).sort(function (a, b) {
+      var ao = num(a.order, 9999), bo = num(b.order, 9999);
+      if (ao !== bo) return ao - bo;
+      return String(a.title || a.name || a.id).localeCompare(String(b.title || b.name || b.id), undefined, { numeric: true });
+    });
+  }
+
+  function normalizeBooksData(data) {
+    return Object.keys(data || {}).map(function (id) {
+      var c = data[id] || {};
+      return {
+        id: id,
+        className: c.className || c.name || id,
+        board: c.board || 'Books',
+        boardOrder: num(c.boardOrder, 9999),
+        order: num(c.classOrder != null ? c.classOrder : c.order, 9999),
+        official: sortBooks(c.official || c.officialBooks),
+        reference: sortBooks(c.reference || c.referenceBooks || c.references)
+      };
+    }).sort(function (a, b) {
+      if (a.boardOrder !== b.boardOrder) return a.boardOrder - b.boardOrder;
+      var bc = String(a.board).localeCompare(String(b.board), undefined, { numeric: true });
+      if (bc) return bc;
+      if (a.order !== b.order) return a.order - b.order;
+      return String(a.className).localeCompare(String(b.className), undefined, { numeric: true });
+    });
+  }
+
+  function populateClassSelect() {
+    var prev = selectedClass;
+    $classSelect.innerHTML = '<option value="all">All classes</option>' + allClasses.map(function (c) {
+      return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.board + ' › ' + c.className) + '</option>';
+    }).join('');
+    selectedClass = allClasses.some(function (c) { return c.id === prev; }) ? prev : 'all';
+    $classSelect.value = selectedClass;
+  }
+
+  function bookCard(book) {
+    var title = book.title || book.name || 'Untitled book';
+    var url = book.url || book.downloadUrl || book.link || '';
+    var author = book.author ? '<div class="book-author">' + escapeHtml(book.author) + '</div>' : '';
+    var disabled = url ? '' : ' disabled';
+    var href = url ? ' href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer"' : ' href="#"';
+    return '<div class="book-card">' +
+           '<div class="book-info"><div class="book-title">' + escapeHtml(title) + '</div>' + author + '</div>' +
+           '<a class="download-btn' + disabled + '"' + href + ' download>Download</a>' +
+           '</div>';
+  }
+
+  function bookGroup(title, books) {
+    if (!books || !books.length) {
+      return '<div class="book-subtitle">' + escapeHtml(title) + '</div><div class="empty small">No ' + escapeHtml(title.toLowerCase()) + ' added yet.</div>';
+    }
+    return '<div class="book-subtitle">' + escapeHtml(title) + '</div>' + books.map(bookCard).join('');
+  }
+
+  function render() {
+    var list = selectedClass === 'all'
+      ? allClasses
+      : allClasses.filter(function (c) { return c.id === selectedClass; });
+
+    if (!allClasses.length) {
+      $content.innerHTML = '<div class="empty">No books available yet.</div>';
+      return;
+    }
+    if (!list.length) {
+      $content.innerHTML = '<div class="empty">No books found for this class.</div>';
+      return;
+    }
+
+    var html = '';
+    var currentBoard = null;
+    list.forEach(function (c) {
+      if (currentBoard !== c.board) {
+        currentBoard = c.board;
+        html += '<section class="board-section"><div class="board-title">' + escapeHtml(c.board) + '</div></section>';
+      }
+      html += '<section class="book-class-section">' +
+              '<div class="book-class-title">' + escapeHtml(c.className) + '</div>' +
+              bookGroup('Official Books', c.official) +
+              bookGroup('Reference Books', c.reference) +
+              '</section>';
+    });
+    $content.innerHTML = html;
+  }
+
+  function loadBooks() {
+    if (!navigator.onLine) {
+      $content.innerHTML = '<div class="error-banner">You are offline. Please connect to the internet and reload.</div>';
+      return;
+    }
+    setLoading(true);
+    read('/books').then(function (data) {
+      setLoading(false);
+      allClasses = normalizeBooksData(data || {});
+      populateClassSelect();
+      render();
+    }).catch(function (err) {
+      setLoading(false);
+      $content.innerHTML = '<div class="error-banner">Failed to load books: ' + escapeHtml(err.message || err) + '</div>';
+    });
+  }
+
+  $classSelect.addEventListener('change', function () {
+    selectedClass = $classSelect.value || 'all';
+    render();
+  });
+
+  loadBooks();
+})();
+</script>
+</body>
+</html>

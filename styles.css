@@ -1269,3 +1269,20 @@ body {
 .download-btn .card-icon { width: 24px; height: 24px; min-width: 24px; border-radius: 8px; background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.22); color: currentColor; }
 .download-btn .card-icon svg { width: 16px; height: 16px; stroke-width: 2.4; }
 .site-footer { max-width: 720px; }
+
+/* Center question text inside question cards */
+.question-item {
+  align-items: center;
+}
+.question-item .card-main {
+  justify-content: center;
+}
+.question-item .card-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+}
+.question-item .card-icon {
+  margin-top: 0;
+}

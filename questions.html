@@ -128,8 +128,7 @@
         var url = buildUrl('answer.html', { classId: classId, subjectId: subjectId, chapterId: chapterId, qId: it.id });
         html += '<a class="question-item" href="' + url + '">' +
                 svgIcon('question') +
-                '<span class="card-main"><span class="card-title">' + escapeHtml(it.question) + '</span>' +
-                '<span class="card-subtitle">' + escapeHtml(g.type) + ' • Question ' + (idx + 1) + '</span></span>' +
+                '<span class="card-main"><span class="card-title">' + escapeHtml(it.question) + '</span></span>' +
                 '<span class="arrow">›</span></a>';
       });
       html += '</div></div>';

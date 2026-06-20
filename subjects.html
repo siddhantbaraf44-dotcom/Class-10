@@ -44,6 +44,7 @@
     <div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
   </div>
 </div>
+<footer class="site-footer"><strong>Q&A Student</strong><br>Simple, organized learning for students.</footer>
 
 <a class="bottom-back-btn" href="index.html" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.8 5.2 8 12l6.8 6.8"/></svg></a>
 <div class="toast" id="toast"></div>
@@ -57,6 +58,7 @@
   var buildUrl = APP.buildUrl;
   var readData = APP.readData;
   var getChildSummaries = APP.getChildSummaries;
+  var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
 
   var classId = getParam('classId');
@@ -104,7 +106,9 @@
         var cc = Number(sub.chapterCount || 0);
         var countText = cc ? (cc === 1 ? '1 chapter' : cc + ' chapters') : '—';
         return '<a class="list-item" href="' + buildUrl('chapters.html', { classId: classId, subjectId: sub.id }) + '">' +
-               '<span>' + escapeHtml(sub.name || sub.id) + '</span>' +
+               svgIcon('subject') +
+               '<span class="card-main"><span class="card-title">' + escapeHtml(sub.name || sub.id) + '</span>' +
+               '<span class="card-subtitle">' + escapeHtml(currentClassName) + '</span></span>' +
                '<span class="count">' + countText + '</span>' +
                '<span class="arrow">›</span></a>';
       }).join('') + '</div>';

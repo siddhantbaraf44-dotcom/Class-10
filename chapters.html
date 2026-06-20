@@ -46,6 +46,7 @@
     <div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item"></div></div>
   </div>
 </div>
+<footer class="site-footer"><strong>Q&A Student</strong><br>Simple, organized learning for students.</footer>
 
 <a class="bottom-back-btn" id="bottomBackBtn" href="#" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.8 5.2 8 12l6.8 6.8"/></svg></a>
 <div class="toast" id="toast"></div>
@@ -59,6 +60,7 @@
   var buildUrl = APP.buildUrl;
   var readData = APP.readData;
   var getChapterSummaries = APP.getChapterSummaries;
+  var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
 
   var classId = getParam('classId');
@@ -114,7 +116,9 @@
         var countText = qcount === 0 ? '—' :
           (qcount === 1 ? '1 question' : qcount + ' questions');
         return '<a class="list-item" href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: ch.id }) + '">' +
-               '<span>' + escapeHtml(ch.name || ch.id) + '</span>' +
+               svgIcon('chapter') +
+               '<span class="card-main"><span class="card-title">' + escapeHtml(ch.name || ch.id) + '</span>' +
+               '<span class="card-subtitle">' + escapeHtml(currentSubjectName) + '</span></span>' +
                '<span class="count">' + countText + '</span>' +
                '<span class="arrow">›</span></a>';
       }).join('') + '</div>';

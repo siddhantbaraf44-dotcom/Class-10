@@ -48,6 +48,7 @@
     <div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
   </div>
 </div>
+<footer class="site-footer"><strong>Q&A Student</strong><br>Simple, organized learning for students.</footer>
 
 <a class="bottom-back-btn" id="bottomBackBtn" href="#" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.8 5.2 8 12l6.8 6.8"/></svg></a>
 <div class="toast" id="toast"></div>
@@ -60,6 +61,7 @@
   var getParam = APP.getParam;
   var buildUrl = APP.buildUrl;
   var readData = APP.readData;
+  var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
 
   var classId = getParam('classId');
@@ -84,6 +86,7 @@
   $crumbSubject.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
 
   var groups = [];
+  var currentChapterName = '';
 
   function buildGroups(rawQuestions) {
     var items = Object.keys(rawQuestions || {}).map(function (id) {
@@ -124,8 +127,10 @@
       filtered.forEach(function (it, idx) {
         var url = buildUrl('answer.html', { classId: classId, subjectId: subjectId, chapterId: chapterId, qId: it.id });
         html += '<a class="question-item" href="' + url + '">' +
-                '<span class="qnum">' + (idx + 1) + '.</span>' +
-                '<span class="qtext">' + escapeHtml(it.question) + '</span></a>';
+                svgIcon('question') +
+                '<span class="card-main"><span class="card-title">' + escapeHtml(it.question) + '</span>' +
+                '<span class="card-subtitle">' + escapeHtml(g.type) + ' • Question ' + (idx + 1) + '</span></span>' +
+                '<span class="arrow">›</span></a>';
       });
       html += '</div></div>';
     });
@@ -161,8 +166,9 @@
         return;
       }
 
-      $title.textContent = String(chapterName);
-      document.title = String(chapterName) + ' — Questions';
+      currentChapterName = String(chapterName);
+      $title.textContent = currentChapterName;
+      document.title = currentChapterName + ' — Questions';
       $crumbClass.textContent = String(className);
       $crumbSubject.textContent = String(subjectName);
       $crumbCurrent.textContent = String(chapterName);

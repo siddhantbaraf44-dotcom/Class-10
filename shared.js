@@ -142,6 +142,18 @@
       });
     }
 
+    function svgIcon(kind) {
+      var paths = {
+        class: '<path d="M4 7.5 12 4l8 3.5-8 3.5L4 7.5Z"/><path d="M6.5 10v4.2c0 1.3 2.5 2.8 5.5 2.8s5.5-1.5 5.5-2.8V10"/>',
+        subject: '<path d="M6.5 4.5h8.5a2.5 2.5 0 0 1 2.5 2.5v12.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5Z"/><path d="M7 15.5h10.5"/><path d="M8 8h6"/>',
+        chapter: '<path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21V5.5Z"/><path d="M8 7h7"/><path d="M8 10.5h8"/>',
+        question: '<path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M9.7 9a2.4 2.4 0 0 1 4.5 1.2c0 1.8-2.2 2-2.2 3.6"/><path d="M12 17h.01"/>',
+        book: '<path d="M6.5 4H18a2 2 0 0 1 2 2v14H7.5A3.5 3.5 0 0 1 4 16.5v-10A2.5 2.5 0 0 1 6.5 4Z"/><path d="M7 16h13"/><path d="M8 8h7"/>',
+        download: '<path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/>'
+      };
+      return '<span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' + (paths[kind] || paths.question) + '</svg></span>';
+    }
+
     /* Reads only child keys first, then each child's /name.
        This avoids downloading all nested chapters/questions just to render lists. */
     function getChildSummaries(path) {
@@ -230,6 +242,7 @@
       readData: readData,
       getName: getName,
       sortByName: sortByName,
+      svgIcon: svgIcon,
       getChildSummaries: getChildSummaries,
       getClassSummaries: getClassSummaries,
       getChapterSummaries: getChapterSummaries,

@@ -46,6 +46,7 @@
     </div>
   </div>
 </div>
+<footer class="site-footer"><strong>Q&A Student</strong><br>Simple, organized learning for students.</footer>
 
 <a class="bottom-back-btn" href="index.html" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.8 5.2 8 12l6.8 6.8"/></svg></a>
 <div class="toast" id="toast"></div>
@@ -138,6 +139,14 @@
     });
   }
 
+  function svgIcon(kind) {
+    var paths = {
+      book: '<path d="M6.5 4H18a2 2 0 0 1 2 2v14H7.5A3.5 3.5 0 0 1 4 16.5v-10A2.5 2.5 0 0 1 6.5 4Z"/><path d="M7 16h13"/><path d="M8 8h7"/>',
+      download: '<path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/>'
+    };
+    return '<span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' + (paths[kind] || paths.book) + '</svg></span>';
+  }
+
   function populateClassSelect() {
     var prev = selectedClass;
     $classSelect.innerHTML = '<option value="all">All classes</option>' + allClasses.map(function (c) {
@@ -154,8 +163,9 @@
     var disabled = url ? '' : ' disabled';
     var href = url ? ' href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer"' : ' href="#"';
     return '<div class="book-card">' +
+           svgIcon('book') +
            '<div class="book-info"><div class="book-title">' + escapeHtml(title) + '</div>' + author + '</div>' +
-           '<a class="download-btn' + disabled + '"' + href + ' download>Download</a>' +
+           '<a class="download-btn' + disabled + '"' + href + ' download>' + svgIcon('download') + '<span>Download</span></a>' +
            '</div>';
   }
 

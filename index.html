@@ -48,12 +48,24 @@
     </div>
   </div>
 
+  <section class="hero-card">
+    <div class="hero-kicker">Learn • Practice • Revise</div>
+    <h2 class="hero-title">Organized study material for every board and class.</h2>
+    <p class="hero-subtitle">Browse questions, answers, chapters and books in a clean, student-friendly layout.</p>
+    <div class="hero-actions">
+      <a class="hero-btn primary" href="#content">Browse Classes</a>
+      <a class="hero-btn" href="books.html">Download Books</a>
+    </div>
+
+  </section>
+
   <div class="board-filters" id="boardFilters" style="display:none;"></div>
 
   <div id="content">
     <div class="skeleton-heading"></div><div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
   </div>
 </div>
+<footer class="site-footer"><strong>Q&A Student</strong><br>Simple, organized learning for students.</footer>
 
 <div class="toast" id="toast"></div>
 
@@ -66,6 +78,7 @@
   var buildUrl = APP.buildUrl;
   var refreshTree = APP.refreshTree;
   var getClassSummaries = APP.getClassSummaries;
+  var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
 
   var $content = document.getElementById('content');
@@ -178,7 +191,9 @@
                var sc = Number(c.subjectCount || 0);
                var countText = sc ? (sc === 1 ? '1 subject' : sc + ' subjects') : '—';
                return '<a class="list-item" href="' + buildUrl('subjects.html', { classId: c.id }) + '">' +
-                      '<span>' + escapeHtml(c.name || c.id) + '</span>' +
+                      svgIcon('class') +
+                      '<span class="card-main"><span class="card-title">' + escapeHtml(c.name || c.id) + '</span>' +
+                      '<span class="card-subtitle">' + escapeHtml(g.title) + '</span></span>' +
                       '<span class="count">' + countText + '</span>' +
                       '<span class="arrow">›</span></a>';
              }).join('') + '</div></section>';
@@ -272,11 +287,11 @@
           chapterId: it.chapterId, qId: it.id
         });
         html += '<a class="search-result" href="' + url + '">';
-        html += '<span class="result-num">' + (idx + 1) + '.</span>';
+        html += svgIcon('question');
         html += '<div class="result-body">';
         if (it.type) html += '<div class="result-type">' + escapeHtml(it.type) + '</div>';
         html += '<div class="result-text">' + escapeHtml(it.question) + '</div>';
-        html += '</div></a>';
+        html += '</div><span class="arrow">›</span></a>';
       });
       html += '</div></div>';
     });
@@ -294,7 +309,6 @@
     getClassSummaries().then(function (list) {
       setUpdating(false);
       classes = list || [];
-
       var m = (window.location.hash || '').match(/^#q=(.*)$/);
       if (m && m[1]) { try { $search.value = decodeURIComponent(m[1]); } catch (e) {} }
       doSearch();
@@ -333,5 +347,5 @@
   loadClasses();
 })();
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0eac2e7bf593c4c',t:'MTc4MTk1ODM4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

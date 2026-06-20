@@ -15,6 +15,9 @@
 html, body {
   margin: 0;
   padding: 0;
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
   background: #0a0a0f;
   color: #e6e6ec;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -23,15 +26,20 @@ html, body {
   line-height: 1.5;
   min-height: 100vh;
   overflow-x: hidden;
-  /* Android: kill rubber-band overscroll on body */
-  overscroll-behavior-y: none;
+  overflow-y: auto;
+  /* Keep normal vertical scrolling on Android/iOS. */
+  overscroll-behavior-y: auto;
   /* Stop Android from auto-scaling text on rotation */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   /* Smooth momentum scroll */
   -webkit-overflow-scrolling: touch;
 }
-body { padding-bottom: env(safe-area-inset-bottom); }
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+  position: relative;
+  touch-action: pan-y;
+}
 
 /* Disable text selection on UI controls (Android long-press toolbar). */
 button, .list-item, .question-item, .search-result,
@@ -56,6 +64,8 @@ button, .list-item, .question-item, .search-result,
   max-width: 720px;
   margin: 0 auto;
   min-height: 100vh;
+  height: auto;
+  overflow: visible;
   padding: 0 14px;
   position: relative;
 }
@@ -470,6 +480,8 @@ button, .list-item, .question-item, .search-result,
   max-width: 720px;
   margin: 0 auto;
   min-height: 100vh;
+  height: auto;
+  overflow: visible;
   background: #0a0a0f;
   display: flex;
   flex-direction: column;

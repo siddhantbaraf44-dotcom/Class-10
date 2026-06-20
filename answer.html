@@ -21,7 +21,6 @@
 
 <div class="answer-page" id="answerPage">
   <div class="answer-header">
-    <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
     <a class="home-link" href="index.html" aria-label="Home">⌂</a>
     <img src="icon.svg" alt="Q&A" class="site-logo" />
     <div class="answer-counter" id="counter">…</div>
@@ -36,11 +35,10 @@
       <div class="skeleton-item short"></div>
     </div>
   </div>
+  <a class="bottom-back-btn" id="bottomBackBtn" href="#" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.8 5.2 8 12l6.8 6.8"/></svg></a>
   <div class="answer-footer">
     <a class="nav-btn" id="allQuestionsBtn" href="#">All Questions</a>
     <button class="nav-btn disabled" id="prevBtn" disabled>‹ Prev</button>
-    <button class="copy-btn" id="copyBtn" disabled style="opacity:0.4;">Copy Answer</button>
-    <button class="copy-btn" id="copyQaBtn" disabled style="opacity:0.4;">Copy Q&A</button>
     <button class="nav-btn primary disabled" id="nextBtn" disabled>Next ›</button>
   </div>
 </div>
@@ -54,7 +52,6 @@
   var escapeHtml = APP.escapeHtml;
   var getParam = APP.getParam;
   var buildUrl = APP.buildUrl;
-  var showToast = APP.showToast;
   var readData = APP.readData;
   var setUpdating = APP.setUpdating;
 
@@ -63,7 +60,6 @@
   var chapterId = getParam('chapterId');
   var qId = getParam('qId');
 
-  var $backLink = document.getElementById('backLink');
   var $counter = document.getElementById('counter');
   var $body = document.getElementById('body');
   var $type = document.getElementById('type');
@@ -71,10 +67,9 @@
   var $imageWrap = document.getElementById('imageWrap');
   var $text = document.getElementById('text');
   var $allQuestions = document.getElementById('allQuestionsBtn');
+  var $bottomBack = document.getElementById('bottomBackBtn');
   var $prev = document.getElementById('prevBtn');
   var $next = document.getElementById('nextBtn');
-  var $copy = document.getElementById('copyBtn');
-  var $copyQa = document.getElementById('copyQaBtn');
 
   var flat = [];
   var idx = -1;
@@ -84,17 +79,11 @@
     $next.disabled = true;
     $prev.classList.add('disabled');
     $next.classList.add('disabled');
-    $copy.disabled = true;
-    $copy.style.opacity = '0.4';
-    $copyQa.disabled = true;
-    $copyQa.style.opacity = '0.4';
+
   }
 
-  function enableCopy() {
-    $copy.disabled = false;
-    $copy.style.opacity = '';
-    $copyQa.disabled = false;
-    $copyQa.style.opacity = '';
+  function enableFooter() {
+    /* Footer links/buttons are enabled by show() based on current question index. */
   }
 
   function showError(html) {
@@ -113,7 +102,7 @@
     showError('Missing parameters.<br><a href="index.html">Go back to Classes</a>');
     return;
   }
-  $backLink.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
+  $bottomBack.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
   $allQuestions.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
 
   function getImageUrls(q) {
@@ -219,11 +208,7 @@
     $next.disabled = idx === flat.length - 1;
     $prev.classList.toggle('disabled', idx === 0);
     $next.classList.toggle('disabled', idx === flat.length - 1);
-    enableCopy();
-    $copy.classList.remove('copied');
-    $copy.textContent = 'Copy Answer';
-    $copyQa.classList.remove('copied');
-    $copyQa.textContent = 'Copy Q&A';
+    enableFooter();
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
@@ -262,54 +247,6 @@
 
   $prev.addEventListener('click', function () { if (idx > 0) show(idx - 1); });
   $next.addEventListener('click', function () { if (idx < flat.length - 1) show(idx + 1); });
-
-  async function writeClipboard(text) {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-    } else {
-      var ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-  }
-
-  function flashCopied(btn, label) {
-    btn.classList.add('copied');
-    btn.textContent = 'Copied ✓';
-    setTimeout(function () {
-      if (btn.classList.contains('copied')) {
-        btn.classList.remove('copied');
-        btn.textContent = label;
-      }
-    }, 1500);
-  }
-
-  $copy.addEventListener('click', async function () {
-    try {
-      await writeClipboard($text.textContent || '');
-      flashCopied($copy, 'Copy Answer');
-      showToast('Answer copied');
-    } catch (e) {
-      showToast('Copy failed');
-    }
-  });
-
-  $copyQa.addEventListener('click', async function () {
-    var q = flat[idx] || {};
-    var text = 'Q: ' + (q.question || '') + '\n\nA: ' + (q.answer || '');
-    try {
-      await writeClipboard(text);
-      flashCopied($copyQa, 'Copy Q&A');
-      showToast('Question & answer copied');
-    } catch (e) {
-      showToast('Copy failed');
-    }
-  });
 
   var sx = null, sy = null, st = 0;
   document.addEventListener('touchstart', function (e) {

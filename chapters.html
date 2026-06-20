@@ -22,7 +22,6 @@
 <div id="app">
   <div class="header">
     <div class="header-row">
-      <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
       <a class="home-link" href="index.html" aria-label="Home">⌂</a>
       <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title" id="pageTitle">Chapters</h1>
@@ -48,6 +47,7 @@
   </div>
 </div>
 
+<a class="bottom-back-btn" id="bottomBackBtn" href="#" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.8 5.2 8 12l6.8 6.8"/></svg></a>
 <div class="toast" id="toast"></div>
 
 <script src="shared.js"></script>
@@ -65,7 +65,7 @@
   var subjectId = getParam('subjectId');
 
   var $title = document.getElementById('pageTitle');
-  var $backLink = document.getElementById('backLink');
+  var $bottomBack = document.getElementById('bottomBackBtn');
   var $crumbClass = document.getElementById('crumbClass');
   var $crumbCurrent = document.querySelector('#breadcrumb .current');
   var $content = document.getElementById('content');
@@ -79,7 +79,7 @@
                          '<a href="index.html">Go back to Classes</a></div>';
     return;
   }
-  $backLink.href = buildUrl('subjects.html', { classId: classId });
+  $bottomBack.href = buildUrl('subjects.html', { classId: classId });
   $crumbClass.href = buildUrl('subjects.html', { classId: classId });
 
   function render(className, subjectName, chapters) {

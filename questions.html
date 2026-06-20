@@ -22,7 +22,6 @@
 <div id="app">
   <div class="header">
     <div class="header-row">
-      <a class="back-link" id="backLink" href="#" aria-label="Back">‹</a>
       <a class="home-link" href="index.html" aria-label="Home">⌂</a>
       <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title" id="pageTitle">Questions</h1>
@@ -50,6 +49,7 @@
   </div>
 </div>
 
+<a class="bottom-back-btn" id="bottomBackBtn" href="#" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.8 5.2 8 12l6.8 6.8"/></svg></a>
 <div class="toast" id="toast"></div>
 
 <script src="shared.js"></script>
@@ -67,7 +67,7 @@
   var chapterId = getParam('chapterId');
 
   var $title = document.getElementById('pageTitle');
-  var $backLink = document.getElementById('backLink');
+  var $bottomBack = document.getElementById('bottomBackBtn');
   var $crumbClass = document.getElementById('crumbClass');
   var $crumbSubject = document.getElementById('crumbSubject');
   var $crumbCurrent = document.querySelector('#breadcrumb .current');
@@ -79,7 +79,7 @@
                          '<a href="index.html">Go back to Classes</a></div>';
     return;
   }
-  $backLink.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
+  $bottomBack.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
   $crumbClass.href = buildUrl('subjects.html', { classId: classId });
   $crumbSubject.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
 

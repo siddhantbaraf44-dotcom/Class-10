@@ -8,6 +8,8 @@
 <meta name="HandheldFriendly" content="true" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
+<meta name="description" content="" />
+<link rel="canonical" href="" />
 <title>Subjects</title>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
@@ -60,7 +62,11 @@
   var getChildSummaries = APP.getChildSummaries;
   var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
+  var setPageMeta = APP.setPageMeta;
+  var resolveClassSlug = APP.resolveClassSlug;
+  var loadClassById = APP.loadClassById;
 
+  var classSlug = getParam('class');
   var classId = getParam('classId');
 
   var $title = document.getElementById('pageTitle');
@@ -69,20 +75,38 @@
   var $search = document.getElementById('searchInput');
   var allSubjects = [];
   var currentClassName = '';
+  var resolvedClass = null;
 
-  if (!classId) {
+  if (!classSlug && !classId) {
     $content.innerHTML = '<div class="error-banner">No class selected.<br>' +
                          '<a href="index.html">Go back to Classes</a></div>';
     $title.textContent = 'Subjects';
     return;
   }
 
-  function render(className, subjects) {
-    currentClassName = className;
+  function resolveClass() {
+    if (classSlug) {
+      return resolveClassSlug(classSlug).then(function (res) {
+        if (res) return res;
+        if (classId) return loadClassById(classId);
+        return null;
+      });
+    }
+    if (classId) return loadClassById(classId);
+    return Promise.resolve(null);
+  }
+
+  function render(classInfo, subjects) {
+    resolvedClass = classInfo;
+    currentClassName = classInfo.name;
     allSubjects = subjects || [];
-    $title.textContent = className;
-    document.title = className + ' — Subjects';
-    $crumbCurrent.textContent = className;
+    $title.textContent = classInfo.name;
+    setPageMeta({
+      title: classInfo.name + ' — Subjects',
+      description: 'Browse subjects for ' + classInfo.name + '.',
+      canonical: window.location.href
+    });
+    $crumbCurrent.textContent = classInfo.name;
     renderFiltered();
   }
 
@@ -105,7 +129,7 @@
       '<div class="list">' + subjects.map(function (sub) {
         var cc = Number(sub.chapterCount || 0);
         var countText = cc ? (cc === 1 ? '1 chapter' : cc + ' chapters') : '—';
-        return '<a class="list-item" href="' + buildUrl('chapters.html', { classId: classId, subjectId: sub.id }) + '">' +
+        return '<a class="list-item" href="' + buildUrl('chapters.html', { class: resolvedClass.slug, subject: sub.slug }) + '">' +
                svgIcon('subject') +
                '<span class="card-main"><span class="card-title">' + escapeHtml(sub.name || sub.id) + '</span>' +
                '<span class="card-subtitle">' + escapeHtml(currentClassName) + '</span></span>' +
@@ -122,25 +146,23 @@
     }
 
     setUpdating(true);
-    Promise.all([
-      readData('/classes/' + classId + '/name'),
-      getChildSummaries('/classes/' + classId + '/subjects').then(function (subjects) {
-        return Promise.all((subjects || []).map(function (sub) {
-          return readData('/classes/' + classId + '/subjects/' + sub.id + '/chapters', { shallow: true })
-            .then(function (keys) { sub.chapterCount = Object.keys(keys || {}).length; return sub; })
-            .catch(function () { sub.chapterCount = 0; return sub; });
-        }));
-      })
-    ]).then(function (parts) {
-      setUpdating(false);
-      var className = parts[0];
-      var subjects = parts[1] || [];
-      if (className == null) {
+    resolveClass().then(function (classInfo) {
+      if (!classInfo) {
+        setUpdating(false);
         $content.innerHTML = '<div class="error-banner">This class does not exist.<br>' +
                              '<a href="index.html">Go back to Classes</a></div>';
         return;
       }
-      render(String(className), subjects);
+      return getChildSummaries('/classes/' + classInfo.id + '/subjects').then(function (subjects) {
+        return Promise.all((subjects || []).map(function (sub) {
+          return readData('/classes/' + classInfo.id + '/subjects/' + sub.id + '/chapters', { shallow: true })
+            .then(function (keys) { sub.chapterCount = Object.keys(keys || {}).length; return sub; })
+            .catch(function () { sub.chapterCount = 0; return sub; });
+        })).then(function (subjects) {
+          setUpdating(false);
+          render(classInfo, subjects);
+        });
+      });
     }).catch(function (err) {
       setUpdating(false);
       $content.innerHTML = '<div class="error-banner">Failed to load subjects: ' +

@@ -9,6 +9,7 @@
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
 <meta name="description" content="Browse educational questions and answers by class, subject and chapter." />
+<link rel="canonical" href="" />
 <title>Classes</title>
 
 <!-- Inline SVG favicon (no extra HTTP request). -->
@@ -80,6 +81,8 @@
   var getClassSummaries = APP.getClassSummaries;
   var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
+  var setPageMeta = APP.setPageMeta;
+  var generateSlug = APP.generateSlug;
 
   var $content = document.getElementById('content');
   var $search = document.getElementById('searchInput');
@@ -97,22 +100,28 @@
     var items = [];
     Object.keys(data || {}).forEach(function (cId) {
       var cName = (data[cId] && data[cId].name) || cId;
+      var cSlug = (data[cId] && data[cId].slug) || generateSlug(cName);
       var subs = (data[cId] && data[cId].subjects) || {};
       Object.keys(subs).forEach(function (sId) {
         var sName = (subs[sId] && subs[sId].name) || sId;
+        var sSlug = (subs[sId] && subs[sId].slug) || generateSlug(sName);
         var chs = (subs[sId] && subs[sId].chapters) || {};
         Object.keys(chs).forEach(function (chId) {
           var chName = (chs[chId] && chs[chId].name) || chId;
+          var chSlug = (chs[chId] && chs[chId].slug) || generateSlug(chName);
           var qs = (chs[chId] && chs[chId].questions) || {};
           Object.keys(qs).forEach(function (qId) {
             items.push({
               id: qId,
               classId: cId,
               className: cName,
+              classSlug: cSlug,
               subjectId: sId,
               subjectName: sName,
+              subjectSlug: sSlug,
               chapterId: chId,
               chapterName: chName,
+              chapterSlug: chSlug,
               type: String((qs[qId] && qs[qId].type) || ''),
               question: String((qs[qId] && qs[qId].question) || ''),
               answer: String((qs[qId] && qs[qId].answer) || '')
@@ -190,7 +199,7 @@
              '<div class="list">' + g.items.map(function (c) {
                var sc = Number(c.subjectCount || 0);
                var countText = sc ? (sc === 1 ? '1 subject' : sc + ' subjects') : '—';
-               return '<a class="list-item" href="' + buildUrl('subjects.html', { classId: c.id }) + '">' +
+               return '<a class="list-item" href="' + buildUrl('subjects.html', { class: c.slug }) + '">' +
                       svgIcon('class') +
                       '<span class="card-main"><span class="card-title">' + escapeHtml(c.name || c.id) + '</span>' +
                       '<span class="card-subtitle">' + escapeHtml(g.title) + '</span></span>' +
@@ -260,6 +269,7 @@
         groups.set(key, {
           classId: it.classId, subjectId: it.subjectId, chapterId: it.chapterId,
           className: it.className, subjectName: it.subjectName, chapterName: it.chapterName,
+          classSlug: it.classSlug, subjectSlug: it.subjectSlug, chapterSlug: it.chapterSlug,
           items: []
         });
       }
@@ -273,18 +283,18 @@
     groups.forEach(function (g) {
       html += '<div class="search-group">';
       html += '<div class="search-group-path">';
-      html += '<a href="' + buildUrl('subjects.html', { classId: g.classId }) + '">' +
+      html += '<a href="' + buildUrl('subjects.html', { class: g.classSlug }) + '">' +
               escapeHtml(g.className) + '</a>';
       html += '<span class="crumb-sep">›</span>';
-      html += '<a href="' + buildUrl('chapters.html', { classId: g.classId, subjectId: g.subjectId }) + '">' +
+      html += '<a href="' + buildUrl('chapters.html', { class: g.classSlug, subject: g.subjectSlug }) + '">' +
               escapeHtml(g.subjectName) + '</a>';
       html += '<span class="crumb-sep">›</span>';
       html += '<span class="current">' + escapeHtml(g.chapterName) + '</span>';
       html += '</div><div class="search-group-list">';
       g.items.forEach(function (it, idx) {
         var url = buildUrl('answer.html', {
-          classId: it.classId, subjectId: it.subjectId,
-          chapterId: it.chapterId, qId: it.id
+          class: it.classSlug, subject: it.subjectSlug,
+          chapter: it.chapterSlug, qId: it.id
         });
         html += '<a class="search-result" href="' + url + '">';
         html += svgIcon('question');
@@ -311,6 +321,11 @@
       classes = list || [];
       var m = (window.location.hash || '').match(/^#q=(.*)$/);
       if (m && m[1]) { try { $search.value = decodeURIComponent(m[1]); } catch (e) {} }
+      setPageMeta({
+        title: 'Classes — Q&A Student',
+        description: 'Browse educational questions and answers by class, subject and chapter.',
+        canonical: window.location.href
+      });
       doSearch();
     }).catch(function (err) {
       setUpdating(false);

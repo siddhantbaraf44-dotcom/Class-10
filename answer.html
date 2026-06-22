@@ -8,6 +8,8 @@
 <meta name="HandheldFriendly" content="true" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
+<meta name="description" content="" />
+<link rel="canonical" href="" />
 <title>Answer</title>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
@@ -55,9 +57,19 @@
   var buildUrl = APP.buildUrl;
   var readData = APP.readData;
   var setUpdating = APP.setUpdating;
+  var setPageMeta = APP.setPageMeta;
+  var resolveClassSlug = APP.resolveClassSlug;
+  var resolveSubjectSlug = APP.resolveSubjectSlug;
+  var resolveChapterSlug = APP.resolveChapterSlug;
+  var loadClassById = APP.loadClassById;
+  var loadSubjectById = APP.loadSubjectById;
+  var loadChapterById = APP.loadChapterById;
 
+  var classSlug = getParam('class');
   var classId = getParam('classId');
+  var subjectSlug = getParam('subject');
   var subjectId = getParam('subjectId');
+  var chapterSlug = getParam('chapter');
   var chapterId = getParam('chapterId');
   var qId = getParam('qId');
 
@@ -74,17 +86,15 @@
 
   var flat = [];
   var idx = -1;
+  var resolvedClass = null;
+  var resolvedSubject = null;
+  var resolvedChapter = null;
 
   function disableFooter() {
     $prev.disabled = true;
     $next.disabled = true;
     $prev.classList.add('disabled');
     $next.classList.add('disabled');
-
-  }
-
-  function enableFooter() {
-    /* Footer links/buttons are enabled by show() based on current question index. */
   }
 
   function showError(html) {
@@ -99,12 +109,46 @@
     disableFooter();
   }
 
-  if (!classId || !subjectId || !chapterId || !qId) {
+  if ((!classSlug && !classId) || (!subjectSlug && !subjectId) || (!chapterSlug && !chapterId) || !qId) {
     showError('Missing parameters.<br><a href="index.html">Go back to Classes</a>');
     return;
   }
-  $bottomBack.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
-  $allQuestions.href = buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId });
+
+  function resolveClassInfo() {
+    if (classSlug) {
+      return resolveClassSlug(classSlug).then(function (res) {
+        if (res) return res;
+        if (classId) return loadClassById(classId);
+        return null;
+      });
+    }
+    if (classId) return loadClassById(classId);
+    return Promise.resolve(null);
+  }
+
+  function resolveSubjectInfo(classInfo) {
+    if (subjectSlug) {
+      return resolveSubjectSlug(classInfo.id, subjectSlug).then(function (res) {
+        if (res) return res;
+        if (subjectId) return loadSubjectById(classInfo.id, subjectId);
+        return null;
+      });
+    }
+    if (subjectId) return loadSubjectById(classInfo.id, subjectId);
+    return Promise.resolve(null);
+  }
+
+  function resolveChapterInfo(classInfo, subjectInfo) {
+    if (chapterSlug) {
+      return resolveChapterSlug(classInfo.id, subjectInfo.id, chapterSlug).then(function (res) {
+        if (res) return res;
+        if (chapterId) return loadChapterById(classInfo.id, subjectInfo.id, chapterId);
+        return null;
+      });
+    }
+    if (chapterId) return loadChapterById(classInfo.id, subjectInfo.id, chapterId);
+    return Promise.resolve(null);
+  }
 
   function getImageUrls(q) {
     var raw = [];
@@ -209,8 +253,13 @@
     $next.disabled = idx === flat.length - 1;
     $prev.classList.toggle('disabled', idx === 0);
     $next.classList.toggle('disabled', idx === flat.length - 1);
-    enableFooter();
     window.scrollTo({ top: 0, behavior: 'auto' });
+
+    setPageMeta({
+      title: (q.question || 'Answer') + ' | ' + (resolvedChapter ? resolvedChapter.name : '') + ' | Q&A Student',
+      description: 'Answer to: ' + (q.question || '') + ' — ' + (resolvedChapter ? resolvedChapter.name : ''),
+      canonical: window.location.href
+    });
   }
 
   function loadAnswer() {
@@ -221,29 +270,63 @@
 
     showSpinner();
     setUpdating(true);
-    readData('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + chapterId + '/questions')
-      .then(function (raw) {
-        setUpdating(false);
-        if (raw === null) {
-          showError('This chapter does not exist or has no questions.<br>' +
-                    '<a href="index.html">Go back to Classes</a>');
-          return;
-        }
-        flat = buildFlat(raw);
-        var newIdx = flat.findIndex(function (q) { return q.id === qId; });
-        if (newIdx === -1) {
-          showError('This question does not exist.<br>' +
-                    '<a href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: chapterId }) +
-                    '">Back to Questions</a>');
-          return;
-        }
-        show(newIdx);
-      })
-      .catch(function (err) {
-        setUpdating(false);
-        showError('Failed to load answer: ' + escapeHtml(err.message || 'Unknown error') +
-                  '<br><a href="index.html">Go back</a>');
+    resolveClassInfo().then(function (classInfo) {
+      if (!classInfo) throw new Error('Class not found');
+      return resolveSubjectInfo(classInfo).then(function (subjectInfo) {
+        if (!subjectInfo) throw new Error('Subject not found');
+        return resolveChapterInfo(classInfo, subjectInfo).then(function (chapterInfo) {
+          if (!chapterInfo) throw new Error('Chapter not found');
+          resolvedClass = classInfo;
+          resolvedSubject = subjectInfo;
+          resolvedChapter = chapterInfo;
+
+          var backParams = {};
+          if (classInfo.slug) backParams.class = classInfo.slug;
+          else if (classInfo.id) backParams.classId = classInfo.id;
+          if (subjectInfo.slug) backParams.subject = subjectInfo.slug;
+          else if (subjectInfo.id) backParams.subjectId = subjectInfo.id;
+          if (chapterInfo.slug) backParams.chapter = chapterInfo.slug;
+          else if (chapterInfo.id) backParams.chapterId = chapterInfo.id;
+          $bottomBack.href = buildUrl('questions.html', backParams);
+          $allQuestions.href = buildUrl('questions.html', backParams);
+
+          return readData('/classes/' + classInfo.id + '/subjects/' + subjectInfo.id + '/chapters/' + chapterInfo.id + '/questions');
+        });
       });
+    }).then(function (raw) {
+      setUpdating(false);
+      if (raw === null) {
+        showError('This chapter does not exist or has no questions.<br>' +
+                  '<a href="index.html">Go back to Classes</a>');
+        return;
+      }
+      flat = buildFlat(raw);
+      var newIdx = flat.findIndex(function (q) { return q.id === qId; });
+      if (newIdx === -1) {
+        var backParams = {};
+        if (resolvedClass) {
+          if (resolvedClass.slug) backParams.class = resolvedClass.slug;
+          else if (resolvedClass.id) backParams.classId = resolvedClass.id;
+        }
+        if (resolvedSubject) {
+          if (resolvedSubject.slug) backParams.subject = resolvedSubject.slug;
+          else if (resolvedSubject.id) backParams.subjectId = resolvedSubject.id;
+        }
+        if (resolvedChapter) {
+          if (resolvedChapter.slug) backParams.chapter = resolvedChapter.slug;
+          else if (resolvedChapter.id) backParams.chapterId = resolvedChapter.id;
+        }
+        showError('This question does not exist.<br>' +
+          '<a href="' + buildUrl('questions.html', backParams) + '">Back to Questions</a>');
+        return;
+      }
+      show(newIdx);
+    })
+    .catch(function (err) {
+      setUpdating(false);
+      showError('Failed to load answer: ' + escapeHtml(err.message || 'Unknown error') +
+                '<br><a href="index.html">Go back</a>');
+    });
   }
 
   $prev.addEventListener('click', function () { if (idx > 0) show(idx - 1); });

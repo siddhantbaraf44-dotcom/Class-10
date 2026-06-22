@@ -8,6 +8,8 @@
 <meta name="HandheldFriendly" content="true" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
+<meta name="description" content="" />
+<link rel="canonical" href="" />
 <title>Questions</title>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
@@ -63,9 +65,19 @@
   var readData = APP.readData;
   var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
+  var setPageMeta = APP.setPageMeta;
+  var resolveClassSlug = APP.resolveClassSlug;
+  var resolveSubjectSlug = APP.resolveSubjectSlug;
+  var resolveChapterSlug = APP.resolveChapterSlug;
+  var loadClassById = APP.loadClassById;
+  var loadSubjectById = APP.loadSubjectById;
+  var loadChapterById = APP.loadChapterById;
 
+  var classSlug = getParam('class');
   var classId = getParam('classId');
+  var subjectSlug = getParam('subject');
   var subjectId = getParam('subjectId');
+  var chapterSlug = getParam('chapter');
   var chapterId = getParam('chapterId');
 
   var $title = document.getElementById('pageTitle');
@@ -76,17 +88,62 @@
   var $content = document.getElementById('content');
   var $search = document.getElementById('searchInput');
 
-  if (!classId || !subjectId || !chapterId) {
-    $content.innerHTML = '<div class="error-banner">Missing class, subject, or chapter.<br>' +
+  if (!classSlug && !classId) {
+    $content.innerHTML = '<div class="error-banner">Missing class.<br>' +
                          '<a href="index.html">Go back to Classes</a></div>';
     return;
   }
-  $bottomBack.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
-  $crumbClass.href = buildUrl('subjects.html', { classId: classId });
-  $crumbSubject.href = buildUrl('chapters.html', { classId: classId, subjectId: subjectId });
+  if (!subjectSlug && !subjectId) {
+    $content.innerHTML = '<div class="error-banner">Missing subject.<br>' +
+                         '<a href="index.html">Go back to Classes</a></div>';
+    return;
+  }
+  if (!chapterSlug && !chapterId) {
+    $content.innerHTML = '<div class="error-banner">Missing chapter.<br>' +
+                         '<a href="index.html">Go back to Classes</a></div>';
+    return;
+  }
+
+  function resolveClassInfo() {
+    if (classSlug) {
+      return resolveClassSlug(classSlug).then(function (res) {
+        if (res) return res;
+        if (classId) return loadClassById(classId);
+        return null;
+      });
+    }
+    if (classId) return loadClassById(classId);
+    return Promise.resolve(null);
+  }
+
+  function resolveSubjectInfo(classInfo) {
+    if (subjectSlug) {
+      return resolveSubjectSlug(classInfo.id, subjectSlug).then(function (res) {
+        if (res) return res;
+        if (subjectId) return loadSubjectById(classInfo.id, subjectId);
+        return null;
+      });
+    }
+    if (subjectId) return loadSubjectById(classInfo.id, subjectId);
+    return Promise.resolve(null);
+  }
+
+  function resolveChapterInfo(classInfo, subjectInfo) {
+    if (chapterSlug) {
+      return resolveChapterSlug(classInfo.id, subjectInfo.id, chapterSlug).then(function (res) {
+        if (res) return res;
+        if (chapterId) return loadChapterById(classInfo.id, subjectInfo.id, chapterId);
+        return null;
+      });
+    }
+    if (chapterId) return loadChapterById(classInfo.id, subjectInfo.id, chapterId);
+    return Promise.resolve(null);
+  }
 
   var groups = [];
-  var currentChapterName = '';
+  var resolvedClass = null;
+  var resolvedSubject = null;
+  var resolvedChapter = null;
 
   function buildGroups(rawQuestions) {
     var items = Object.keys(rawQuestions || {}).map(function (id) {
@@ -125,7 +182,12 @@
       anyShown = true;
       html += '<div class="group"><div class="group-title">' + escapeHtml(g.type) + '</div><div class="group-list">';
       filtered.forEach(function (it, idx) {
-        var url = buildUrl('answer.html', { classId: classId, subjectId: subjectId, chapterId: chapterId, qId: it.id });
+        var url = buildUrl('answer.html', {
+          class: resolvedClass.slug,
+          subject: resolvedSubject.slug,
+          chapter: resolvedChapter.slug,
+          qId: it.id
+        });
         html += '<a class="question-item" href="' + url + '">' +
                 svgIcon('question') +
                 '<span class="card-main"><span class="card-title">' + escapeHtml(it.question) + '</span></span>' +
@@ -148,30 +210,37 @@
     }
 
     setUpdating(true);
-    Promise.all([
-      readData('/classes/' + classId + '/name'),
-      readData('/classes/' + classId + '/subjects/' + subjectId + '/name'),
-      readData('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + chapterId + '/name'),
-      readData('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + chapterId + '/questions')
-    ]).then(function (parts) {
+    resolveClassInfo().then(function (classInfo) {
+      if (!classInfo) throw new Error('Class not found');
+      return resolveSubjectInfo(classInfo).then(function (subjectInfo) {
+        if (!subjectInfo) throw new Error('Subject not found');
+        return resolveChapterInfo(classInfo, subjectInfo).then(function (chapterInfo) {
+          if (!chapterInfo) throw new Error('Chapter not found');
+          resolvedClass = classInfo;
+          resolvedSubject = subjectInfo;
+          resolvedChapter = chapterInfo;
+          return readData('/classes/' + classInfo.id + '/subjects/' + subjectInfo.id + '/chapters/' + chapterInfo.id + '/questions');
+        });
+      });
+    }).then(function (rawQuestions) {
       setUpdating(false);
-      var className = parts[0];
-      var subjectName = parts[1];
-      var chapterName = parts[2];
-      var rawQuestions = parts[3] || {};
-      if (className == null || subjectName == null || chapterName == null) {
-        $content.innerHTML = '<div class="error-banner">This class, subject, or chapter does not exist.<br>' +
+      if (rawQuestions === null) {
+        $content.innerHTML = '<div class="error-banner">This chapter does not exist or has no questions.<br>' +
                              '<a href="index.html">Go back to Classes</a></div>';
         return;
       }
-
-      currentChapterName = String(chapterName);
-      $title.textContent = currentChapterName;
-      document.title = currentChapterName + ' — Questions';
-      $crumbClass.textContent = String(className);
-      $crumbSubject.textContent = String(subjectName);
-      $crumbCurrent.textContent = String(chapterName);
-
+      $title.textContent = resolvedChapter.name;
+      setPageMeta({
+        title: resolvedChapter.name + ' — Questions | ' + resolvedSubject.name + ' | ' + resolvedClass.name,
+        description: 'Practice questions for ' + resolvedChapter.name + ' in ' + resolvedSubject.name + ', ' + resolvedClass.name + '.',
+        canonical: window.location.href
+      });
+      $crumbClass.href = buildUrl('subjects.html', { class: resolvedClass.slug });
+      $crumbClass.textContent = resolvedClass.name;
+      $crumbSubject.href = buildUrl('chapters.html', { class: resolvedClass.slug, subject: resolvedSubject.slug });
+      $crumbSubject.textContent = resolvedSubject.name;
+      $crumbCurrent.textContent = resolvedChapter.name;
+      $bottomBack.href = buildUrl('chapters.html', { class: resolvedClass.slug, subject: resolvedSubject.slug });
       groups = buildGroups(rawQuestions);
       render();
     }).catch(function (err) {

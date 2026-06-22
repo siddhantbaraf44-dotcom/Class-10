@@ -6,6 +6,7 @@
    - Loads only the small slice each page needs where possible.
    - Adds request timeout + visible error banners so the UI never spins forever.
    - Keeps URL helpers, HTML escaping, toast, and online/offline indicator.
+   - NEW: slug helpers + SEO meta helpers for clean, SEO-friendly URLs.
    ============================================================ */
 (function () {
   /* ---------- Global error handler ---------- */
@@ -136,6 +137,16 @@
       return String(value);
     }
 
+    function generateSlug(name) {
+      return String(name || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]+/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+
     function sortByName(items) {
       return items.sort(function (a, b) {
         return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true });
@@ -154,17 +165,20 @@
       return '<span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' + (paths[kind] || paths.question) + '</svg></span>';
     }
 
-    /* Reads only child keys first, then each child's /name.
+    /* Reads only child keys first, then each child's /name and /slug.
        This avoids downloading all nested chapters/questions just to render lists. */
     function getChildSummaries(path) {
       return readData(path, { shallow: true }).then(function (keysObj) {
         var ids = Object.keys(keysObj || {});
         if (!ids.length) return [];
         return Promise.all(ids.map(function (id) {
-          return readData(path + '/' + id + '/name').then(function (name) {
-            return { id: id, name: getName(name, id) };
-          }, function () {
-            return { id: id, name: id };
+          return Promise.all([
+            readData(path + '/' + id + '/name').catch(function () { return id; }),
+            readData(path + '/' + id + '/slug').catch(function () { return ''; })
+          ]).then(function (parts) {
+            var name = getName(parts[0], id);
+            var slug = String(parts[1] || '').trim() || generateSlug(name);
+            return { id: id, name: name, slug: slug };
           });
         })).then(sortByName);
       });
@@ -180,12 +194,15 @@
             readData('/classes/' + id + '/board').catch(function () { return ''; }),
             readData('/classes/' + id + '/boardOrder').catch(function () { return null; }),
             readData('/classes/' + id + '/order').catch(function () { return null; }),
+            readData('/classes/' + id + '/slug').catch(function () { return ''; }),
             readData('/classes/' + id + '/subjects', { shallow: true }).catch(function () { return null; })
           ]).then(function (parts) {
-            var subjectKeys = parts[4] || {};
+            var subjectKeys = parts[5] || {};
+            var name = getName(parts[0], id);
             return {
               id: id,
-              name: getName(parts[0], id),
+              name: name,
+              slug: String(parts[4] || '').trim() || generateSlug(name),
               board: getName(parts[1], 'Classes') || 'Classes',
               boardOrder: Number(parts[2] == null ? 9999 : parts[2]),
               order: Number(parts[3] == null ? 9999 : parts[3]),
@@ -211,17 +228,122 @@
         return Promise.all(ids.map(function (id) {
           return Promise.all([
             readData(path + '/' + id + '/name').catch(function () { return id; }),
+            readData(path + '/' + id + '/slug').catch(function () { return ''; }),
             readData(path + '/' + id + '/questions', { shallow: true }).catch(function () { return null; })
           ]).then(function (parts) {
-            var qKeys = parts[1] || {};
+            var name = getName(parts[0], id);
+            var slug = String(parts[1] || '').trim() || generateSlug(name);
+            var qKeys = parts[2] || {};
             return {
               id: id,
-              name: getName(parts[0], id),
+              name: name,
+              slug: slug,
               qcount: Object.keys(qKeys).length
             };
           });
         })).then(sortByName);
       });
+    }
+
+    /* ---------- Slug resolution helpers ---------- */
+    function resolveClassSlug(slug) {
+      return readData('/classes').then(function (data) {
+        var keys = Object.keys(data || {});
+        for (var i = 0; i < keys.length; i++) {
+          var id = keys[i];
+          var item = data[id] || {};
+          var itemSlug = item.slug || generateSlug(item.name);
+          if (itemSlug === slug) {
+            return { id: id, name: item.name || id, slug: itemSlug };
+          }
+        }
+        return null;
+      });
+    }
+
+    function resolveSubjectSlug(classId, slug) {
+      return readData('/classes/' + classId + '/subjects').then(function (data) {
+        var keys = Object.keys(data || {});
+        for (var i = 0; i < keys.length; i++) {
+          var id = keys[i];
+          var item = data[id] || {};
+          var itemSlug = item.slug || generateSlug(item.name);
+          if (itemSlug === slug) {
+            return { id: id, name: item.name || id, slug: itemSlug };
+          }
+        }
+        return null;
+      });
+    }
+
+    function resolveChapterSlug(classId, subjectId, slug) {
+      return readData('/classes/' + classId + '/subjects/' + subjectId + '/chapters').then(function (data) {
+        var keys = Object.keys(data || {});
+        for (var i = 0; i < keys.length; i++) {
+          var id = keys[i];
+          var item = data[id] || {};
+          var itemSlug = item.slug || generateSlug(item.name);
+          if (itemSlug === slug) {
+            return { id: id, name: item.name || id, slug: itemSlug };
+          }
+        }
+        return null;
+      });
+    }
+
+    function loadClassById(id) {
+      return Promise.all([
+        readData('/classes/' + id + '/name').catch(function () { return ''; }),
+        readData('/classes/' + id + '/slug').catch(function () { return ''; })
+      ]).then(function (parts) {
+        var name = parts[0] || '';
+        var slug = String(parts[1] || '').trim() || generateSlug(name);
+        return { id: id, name: name, slug: slug };
+      });
+    }
+
+    function loadSubjectById(classId, id) {
+      return Promise.all([
+        readData('/classes/' + classId + '/subjects/' + id + '/name').catch(function () { return ''; }),
+        readData('/classes/' + classId + '/subjects/' + id + '/slug').catch(function () { return ''; })
+      ]).then(function (parts) {
+        var name = parts[0] || '';
+        var slug = String(parts[1] || '').trim() || generateSlug(name);
+        return { id: id, name: name, slug: slug };
+      });
+    }
+
+    function loadChapterById(classId, subjectId, id) {
+      return Promise.all([
+        readData('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + id + '/name').catch(function () { return ''; }),
+        readData('/classes/' + classId + '/subjects/' + subjectId + '/chapters/' + id + '/slug').catch(function () { return ''; })
+      ]).then(function (parts) {
+        var name = parts[0] || '';
+        var slug = String(parts[1] || '').trim() || generateSlug(name);
+        return { id: id, name: name, slug: slug };
+      });
+    }
+
+    /* ---------- SEO / meta helpers ---------- */
+    function setPageMeta(opts) {
+      opts = opts || {};
+      if (opts.title) document.title = opts.title;
+
+      var desc = document.querySelector('meta[name="description"]');
+      if (!desc) {
+        desc = document.createElement('meta');
+        desc.name = 'description';
+        document.head.appendChild(desc);
+      }
+      desc.setAttribute('content', opts.description || '');
+
+      var can = document.querySelector('link[rel="canonical"]');
+      if (!can) {
+        can = document.createElement('link');
+        can.rel = 'canonical';
+        document.head.appendChild(can);
+      }
+      can.setAttribute('href', opts.canonical || window.location.href);
     }
 
     /* Compatibility names used by older pages/debug tools. These do not cache. */
@@ -241,13 +363,21 @@
       showContentError: showContentError,
       readData: readData,
       getName: getName,
+      generateSlug: generateSlug,
       sortByName: sortByName,
       svgIcon: svgIcon,
       getChildSummaries: getChildSummaries,
       getClassSummaries: getClassSummaries,
       getChapterSummaries: getChapterSummaries,
       refreshTree: refreshTree,
-      refreshSlice: refreshSlice
+      refreshSlice: refreshSlice,
+      resolveClassSlug: resolveClassSlug,
+      resolveSubjectSlug: resolveSubjectSlug,
+      resolveChapterSlug: resolveChapterSlug,
+      loadClassById: loadClassById,
+      loadSubjectById: loadSubjectById,
+      loadChapterById: loadChapterById,
+      setPageMeta: setPageMeta
     });
 
     /* ---------- Online/offline indicator ---------- */
@@ -259,7 +389,7 @@
     window.addEventListener('offline', updateOnline);
     updateOnline();
 
-    console.log('[shared.js] ready — no localStorage, REST reads enabled');
+    console.log('[shared.js] ready — no localStorage, REST reads enabled, slug support loaded');
   } catch (e) {
     _showErrorBanner('shared.js failed to initialize', e);
   }

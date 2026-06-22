@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <!-- Homepage -->
+  <url>
+    <loc>https://qclasses.netlify.app/</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <!-- Books Page -->
+  <url>
+    <loc>https://qclasses.netlify.app/books.html</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Main Class Listing -->
+  <url>
+    <loc>https://qclasses.netlify.app/index.html</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Example Dynamic Pages (Update these with your actual classes) -->
+  
+  <!-- Class 10 Maharashtra Board -->
+  <url>
+    <loc>https://qclasses.netlify.app/subjects.html?class=class-10</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <url>
+    <loc>https://qclasses.netlify.app/subjects.html?class=class-10-maharashtra-board</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Add more subjects as you create them -->
+  <!-- Example: -->
+  <!--
+  <url>
+    <loc>https://qclasses.netlify.app/chapters.html?class=class-10&amp;subject=algebra</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  -->
+
+  <!-- Note for Google: 
+       This site uses dynamic routing via URL parameters.
+       All pages are generated from Firebase Realtime Database.
+       Please crawl frequently as new chapters and questions are added regularly.
+  -->
+
+</urlset>

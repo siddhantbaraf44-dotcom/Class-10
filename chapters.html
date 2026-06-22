@@ -126,8 +126,8 @@
     allChapters = chapters || [];
     $title.textContent = subjectInfo.name;
     setPageMeta({
-      title: subjectInfo.name + ' — Chapters | ' + classInfo.name,
-      description: 'Browse chapters for ' + subjectInfo.name + ' in ' + classInfo.name + '.',
+      title: subjectInfo.name + ' ' + classInfo.name + ' - Exercise Questions and Answers | QClasses',
+      description: 'Exercise questions and answers of ' + subjectInfo.name + ' ' + classInfo.name + ' SSC Maharashtra Board. Browse all chapters on QClasses.',
       canonical: window.location.href
     });
     $crumbClass.href = buildUrl('subjects.html', { class: classInfo.slug });

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://qclasses.netlify.app/sitemap.xml

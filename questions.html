@@ -231,8 +231,8 @@
       }
       $title.textContent = resolvedChapter.name;
       setPageMeta({
-        title: resolvedChapter.name + ' — Questions | ' + resolvedSubject.name + ' | ' + resolvedClass.name,
-        description: 'Practice questions for ' + resolvedChapter.name + ' in ' + resolvedSubject.name + ', ' + resolvedClass.name + '.',
+        title: resolvedChapter.name + ' - ' + resolvedSubject.name + ' ' + resolvedClass.name + ' SSC Maharashtra Board Exercise Q&amp;A | QClasses',
+        description: 'Exercise questions and answers of ' + resolvedSubject.name + ' ' + resolvedClass.name + ' SSC Maharashtra Board Chapter ' + resolvedChapter.name + '. All exercise questions with solutions for exam preparation.',
         canonical: window.location.href
       });
       $crumbClass.href = buildUrl('subjects.html', { class: resolvedClass.slug });

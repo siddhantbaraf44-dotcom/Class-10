@@ -256,8 +256,8 @@
     window.scrollTo({ top: 0, behavior: 'auto' });
 
     setPageMeta({
-      title: (q.question || 'Answer') + ' | ' + (resolvedChapter ? resolvedChapter.name : '') + ' | Q&A Student',
-      description: 'Answer to: ' + (q.question || '') + ' — ' + (resolvedChapter ? resolvedChapter.name : ''),
+      title: (q.question || 'Answer') + ' - ' + (resolvedChapter ? resolvedChapter.name : '') + ' ' + (resolvedSubject ? resolvedSubject.name : '') + ' ' + (resolvedClass ? resolvedClass.name : '') + ' SSC Maharashtra Board Answer | QClasses',
+      description: 'Exercise questions and answers of ' + (resolvedSubject ? resolvedSubject.name : '') + ' ' + (resolvedClass ? resolvedClass.name : '') + ' SSC Maharashtra Board Chapter ' + (resolvedChapter ? resolvedChapter.name : '') + '. All exercise questions with solutions for exam preparation.',
       canonical: window.location.href
     });
   }

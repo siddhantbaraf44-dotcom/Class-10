@@ -2,365 +2,1223 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#f6f7fb" />
-<meta name="color-scheme" content="light" />
-<meta name="HandheldFriendly" content="true" />
-<meta name="format-detection" content="telephone=no" />
-<meta name="msapplication-tap-highlight" content="no" />
-<meta name="description" content="Browse educational questions and answers by class, subject and chapter." />
-<link rel="canonical" href="" />
-<title>Classes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>Admin Panel</title>
 
-<!-- Inline SVG favicon (no extra HTTP request). -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
+<!-- Firebase SDK v12.14.0 (compat)
+     No Auth — database rules are fully open (no Firebase setup needed beyond creating the project). -->
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
 
-<link rel="preconnect" href="https://rosho-c2d11-default-rtdb.firebaseio.com" crossorigin />
-<link rel="dns-prefetch" href="https://rosho-c2d11-default-rtdb.firebaseio.com" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0a0a0f;
+    color: #e6e6ec;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
 
-<link rel="stylesheet" href="styles.css" />
+  #app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 16px 80px;
+  }
+
+  /* Header */
+  .app-header {
+    padding: 14px 0 8px;
+  }
+  .brand-row { display:flex; align-items:center; gap:10px; }
+  .site-logo {
+    width: 36px; height: 36px; border-radius: 10px;
+    background:#101026; border:1px solid #2a3299; padding:4px;
+    object-fit: contain; flex-shrink:0;
+  }
+  .app-title {
+    font-size: 19px;
+    font-weight: 600;
+    color: #f1f1f8;
+    margin: 0;
+  }
+  .app-sub {
+    color: #8a8fa3;
+    font-size: 12px;
+    margin: 4px 0 14px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    background: #0a0a0f;
+    padding: 8px 0 12px;
+    margin: 0 -16px 14px;
+    padding-left: 16px; padding-right: 16px;
+    border-bottom: 1px solid #1c1c25;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    background: transparent;
+    border: 1px solid #1f1f2a;
+    color: #8a8fa3;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .tab.active {
+    background: #2a3299;
+    border-color: #3a45b8;
+    color: #fff;
+  }
+  .tab:active:not(.active) { background: #14141c; }
+
+  /* Tab panels */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeIn 200ms ease; }
+  @keyframes fadeIn { from {opacity:0; transform:translateY(4px);} to {opacity:1; transform:translateY(0);} }
+
+  /* Form */
+  .form-block {
+    background: #14141c;
+    border: 1px solid #1f1f2a;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .form-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #8a8fff;
+    margin: 0 0 12px;
+  }
+  .form-row { margin-bottom: 12px; }
+  .form-row:last-child { margin-bottom: 0; }
+  .label {
+    display: block;
+    font-size: 12px;
+    color: #8a8fa3;
+    margin-bottom: 6px;
+  }
+  .input, .select, .textarea {
+    width: 100%;
+    background: #0a0a0f;
+    border: 1px solid #1f1f2a;
+    color: #e6e6ec;
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 120ms ease;
+  }
+  .input:focus, .select:focus, .textarea:focus { border-color: #4a55b8; }
+  .textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+  .select { appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, #8a8fa3 50%), linear-gradient(135deg, #8a8fa3 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+  .select option { background: #14141c; color: #e6e6ec; }
+  .select:disabled { opacity: 0.5; }
+
+  .submit-btn {
+    width: 100%;
+    background: #2a3299;
+    border: 1px solid #3a45b8;
+    color: #fff;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 6px;
+  }
+  .submit-btn:active { background: #1f2578; }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Lists */
+  .list-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #8a8fa3;
+    margin: 18px 4px 8px;
+  }
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .list-item {
+    background: #14141c;
+    border: 1px solid #1f1f2a;
+    border-radius: 8px;
+    padding: 11px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .list-item .li-text {
+    flex: 1;
+    font-size: 14.5px;
+    color: #e6e6ec;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .list-item .li-meta {
+    font-size: 12px;
+    color: #8a8fa3;
+    margin-top: 2px;
+  }
+  .list-item .li-body { flex: 1; min-width: 0; }
+  .edit-btn {
+    background: transparent;
+    border: 1px solid #2a3299;
+    color: #b8bfff;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .edit-btn:active { background: #1c1c28; }
+  .del-btn {
+    background: transparent;
+    border: 1px solid #4a1f2a;
+    color: #ff8a96;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .del-btn:active { background: #2a1418; }
+
+  .empty {
+    text-align: center;
+    padding: 24px 12px;
+    color: #6a7088;
+    font-size: 13px;
+  }
+
+  /* Bulk upload area */
+  .file-row {
+    display: flex; gap: 8px; margin-bottom: 10px;
+  }
+  .file-btn {
+    background: #14141c;
+    border: 1px solid #2a3299;
+    color: #8a8fff;
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    flex: 1;
+    text-align: center;
+    display: inline-block;
+  }
+  .file-btn:active { background: #1c1c28; }
+  .file-name {
+    flex: 1;
+    font-size: 13px;
+    color: #8a8fa3;
+    display: flex; align-items: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .json-example {
+    background: #0a0a0f;
+    border: 1px dashed #2a3299;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: #b6bcd0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-top: 6px;
+  }
+
+  /* Page 5 loader */
+  .loader-box {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: #0a0a0f;
+    border: 1px solid #2a3299;
+    color: #b8bfff;
+    padding: 11px 12px;
+    border-radius: 10px;
+    margin: 10px 0 12px;
+    font-size: 13px;
+  }
+  .loader-box.show { display: flex; }
+  .loader-spin {
+    width: 20px; height: 20px;
+    border: 3px solid #1f1f2a;
+    border-top-color: #8a8fff;
+    border-radius: 50%;
+    animation: spinLoader .8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spinLoader { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #14141c;
+    color: #e6e6ec;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    border: 1px solid #2a3299;
+    opacity: 0;
+    transition: opacity 200ms ease, transform 200ms ease;
+    z-index: 2000;
+    pointer-events: none;
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: #2d7a4a; color: #aeeac4; }
+  .toast.error { border-color: #7a2d3a; color: #ffb1b8; }
+
+</style>
 </head>
 <body>
-<div class="offline-tag" id="offlineTag">OFFLINE</div>
 
-<div id="app">
-  <div class="header">
-    <div class="header-row">
+<div id="app" style="display:none;">
+  <div class="app-header">
+    <div class="brand-row">
       <img src="icon.svg" alt="Q&A" class="site-logo" />
-      <h1 class="title">Classes</h1>
-      <a class="header-action" href="books.html">Books</a>
-      <div class="update-pill" id="updatePill">Updating…</div>
+      <h1 class="app-title">Admin Panel</h1>
     </div>
-    <div class="breadcrumb"><span class="current">Classes</span></div>
-
-    <div class="search-bar-global">
-      <span class="search-icon">⌕</span>
-      <input
-        type="search"
-        class="search-input"
-        id="searchInput"
-        placeholder="Search all questions…"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-      />
-      <button class="search-clear" id="searchClear" aria-label="Clear" style="display:none;">×</button>
-    </div>
+    <div class="app-sub">Manage classes, subjects, chapters &amp; questions.</div>
   </div>
 
-  <section class="hero-card">
-    <div class="hero-kicker">Learn • Practice • Revise</div>
-    <h2 class="hero-title">Organized study material for every board and class.</h2>
-    <p class="hero-subtitle">Browse questions, answers, chapters and books in a clean, student-friendly layout.</p>
-    <div class="hero-actions">
-      <a class="hero-btn primary" href="#content">Browse Classes</a>
-      <a class="hero-btn" href="books.html">Download Books</a>
-    </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="class">Class</button>
+    <button class="tab" data-tab="subject">Subject</button>
+    <button class="tab" data-tab="chapter">Chapter</button>
+    <button class="tab" data-tab="question">Question</button>
+    <button class="tab" data-tab="bulk">Bulk Upload</button>
+  </div>
 
+  <!-- Tab: Class -->
+  <section class="tab-panel active" id="tab-class">
+    <div class="form-block">
+      <div class="form-title">Add Class</div>
+      <div class="form-row">
+        <label class="label">Class name</label>
+        <input type="text" class="input" id="className" placeholder="e.g. Class 9" />
+      </div>
+      <div class="form-row">
+        <label class="label">Board title</label>
+        <input type="text" class="input" id="classBoard" placeholder="e.g. SSC / HSC / CBSE" />
+      </div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label class="label">Board order</label>
+          <input type="number" class="input" id="classBoardOrder" placeholder="1" />
+        </div>
+        <div>
+          <label class="label">Class order</label>
+          <input type="number" class="input" id="classOrder" placeholder="1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="label">URL slug (auto-generated from name, editable)</label>
+        <input type="text" class="input" id="classSlug" placeholder="e.g. class-10-ssc-maharashtra" />
+      </div>
+      <div class="app-sub">Lower number appears first. Classes with the same board title are grouped on index.html.</div>
+      <button class="submit-btn" id="addClassBtn">Add Class</button>
+      <button class="submit-btn" id="cancelEditClassBtn" style="display:none;background:#14141c;border-color:#2a2a48;color:#cbd0ff;">Cancel Edit</button>
+    </div>
+    <div class="list-title">Existing Classes</div>
+    <div id="classList" class="list"></div>
   </section>
 
-  <div class="board-filters" id="boardFilters" style="display:none;"></div>
+  <!-- Tab: Subject -->
+  <section class="tab-panel" id="tab-subject">
+    <div class="form-block">
+      <div class="form-title">Add Subject</div>
+      <div class="form-row">
+        <label class="label">Select Class</label>
+        <select class="select" id="subjectClassSel"><option value="">— select —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Subject name</label>
+        <input type="text" class="input" id="subjectName" placeholder="e.g. Mathematics" />
+      </div>
+      <button class="submit-btn" id="addSubjectBtn" disabled>Add Subject</button>
+    </div>
+    <div class="list-title">Existing Subjects <span id="subjectListFor" style="color:#6a7088;"></span></div>
+    <div id="subjectList" class="list"></div>
+  </section>
 
-  <div id="content">
-    <div class="skeleton-heading"></div><div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
-  </div>
+  <!-- Tab: Chapter -->
+  <section class="tab-panel" id="tab-chapter">
+    <div class="form-block">
+      <div class="form-title">Add Chapter</div>
+      <div class="form-row">
+        <label class="label">Select Class</label>
+        <select class="select" id="chapterClassSel"><option value="">— select —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Select Subject</label>
+        <select class="select" id="chapterSubjectSel" disabled><option value="">— select class first —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Chapter name</label>
+        <input type="text" class="input" id="chapterName" placeholder="e.g. Chapter 3 — Atoms and Molecules" />
+      </div>
+      <button class="submit-btn" id="addChapterBtn" disabled>Add Chapter</button>
+    </div>
+    <div class="list-title">Existing Chapters <span id="chapterListFor" style="color:#6a7088;"></span></div>
+    <div id="chapterList" class="list"></div>
+  </section>
+
+  <!-- Tab: Question -->
+  <section class="tab-panel" id="tab-question">
+    <div class="form-block">
+      <div class="form-title">Add Question &amp; Answer</div>
+      <div class="form-row">
+        <label class="label">Select Class</label>
+        <select class="select" id="qClassSel"><option value="">— select —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Select Subject</label>
+        <select class="select" id="qSubjectSel" disabled><option value="">— select class first —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Select Chapter</label>
+        <select class="select" id="qChapterSel" disabled><option value="">— select subject first —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Question Type</label>
+        <select class="select" id="qTypeSel">
+          <option value="Fill in the Blanks">Fill in the Blanks</option>
+          <option value="Short Notes">Short Notes</option>
+          <option value="Answer the Following">Answer the Following</option>
+          <option value="__custom__">Custom…</option>
+        </select>
+      </div>
+      <div class="form-row" id="qTypeCustomRow" style="display:none;">
+        <label class="label">Custom type</label>
+        <input type="text" class="input" id="qTypeCustom" placeholder="Enter custom type" />
+      </div>
+      <div class="form-row">
+        <label class="label">Question</label>
+        <textarea class="textarea" id="qQuestion" placeholder="Enter the question text…"></textarea>
+      </div>
+      <div class="form-row">
+        <label class="label">Answer</label>
+        <textarea class="textarea" id="qAnswer" placeholder="Enter the answer…"></textarea>
+      </div>
+      <div class="form-row">
+        <label class="label">Image URL (optional)</label>
+        <input type="url" class="input" id="qImageUrl" placeholder="https://example.com/image.jpg" />
+      </div>
+      <button class="submit-btn" id="addQuestionBtn" disabled>Add Question</button>
+    </div>
+    <div class="list-title">Existing Questions <span id="questionListFor" style="color:#6a7088;"></span></div>
+    <div id="questionList" class="list"></div>
+  </section>
+
+  <!-- Tab: Bulk Upload -->
+  <section class="tab-panel" id="tab-bulk">
+    <div class="form-block">
+      <div class="form-title">Bulk Upload Questions</div>
+      <div class="form-row">
+        <label class="label">Select Class</label>
+        <select class="select" id="bClassSel"><option value="">— select —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Select Subject</label>
+        <select class="select" id="bSubjectSel" disabled><option value="">— select class first —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Select Chapter</label>
+        <select class="select" id="bChapterSel" disabled><option value="">— select subject first —</option></select>
+      </div>
+      <div class="form-row">
+        <label class="label">Paste JSON or upload a .json file</label>
+        <div class="file-row">
+          <label class="file-btn">
+            Choose .json file
+            <input type="file" id="bFileInput" accept=".json,application/json" style="display:none;" />
+          </label>
+          <div class="file-name" id="bFileName">No file chosen</div>
+        </div>
+        <textarea class="textarea" id="bJsonArea" placeholder='Paste JSON here, e.g.:&#10;[{"type":"Fill in the Blanks","question":"...","answer":"...","imageUrl":"https://example.com/image.jpg"}]' style="min-height:160px;"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="label">Expected JSON format</div>
+        <div class="json-example">[
+  {
+    "type": "Fill in the Blanks",
+    "question": "The chemical symbol of sodium is ____.",
+    "answer": "Na",
+    "imageUrl": "https://example.com/sodium.jpg"
+  },
+  {
+    "type": "Answer the Following",
+    "question": "Define an atom.",
+    "answer": "An atom is the smallest unit of an element..."
+  }
+]</div>
+      </div>
+      <div class="loader-box" id="bulkLoader">
+        <span class="loader-spin"></span>
+        <span id="bulkLoaderText">Uploading questions…</span>
+      </div>
+      <button class="submit-btn" id="bulkUploadBtn" disabled>Upload Questions</button>
+    </div>
+  </section>
 </div>
-<footer class="site-footer"><strong>Q&A Student</strong><br>Simple, organized learning for students.</footer>
 
 <div class="toast" id="toast"></div>
 
-<!-- shared.js loads synchronously BEFORE the page script so helpers are ready. -->
-<script src="shared.js"></script>
 <script>
-(function () {
-  var APP = window.APP;
-  var escapeHtml = APP.escapeHtml;
-  var buildUrl = APP.buildUrl;
-  var refreshTree = APP.refreshTree;
-  var getClassSummaries = APP.getClassSummaries;
-  var svgIcon = APP.svgIcon;
-  var setUpdating = APP.setUpdating;
-  var setPageMeta = APP.setPageMeta;
-  var generateSlug = APP.generateSlug;
+/* ============================
+   Firebase Configuration
+   ============================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAqhYpUhIdH5r2-LAtkGpN696nRwzB5GQA",
+  authDomain: "rosho-c2d11.firebaseapp.com",
+  databaseURL: "https://rosho-c2d11-default-rtdb.firebaseio.com",
+  projectId: "rosho-c2d11",
+  storageBucket: "rosho-c2d11.firebasestorage.app",
+  messagingSenderId: "99652225033",
+  appId: "1:99652225033:web:8988f43c9e77c27338d0d8"
+};
 
-  var $content = document.getElementById('content');
-  var $search = document.getElementById('searchInput');
-  var $clear = document.getElementById('searchClear');
-  var $boardFilters = document.getElementById('boardFilters');
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  var classes = [];
-  var allData = null;
-  var allQuestions = [];
-  var searchIndexPromise = null;
-  var debounceTimer = null;
-  var selectedBoard = 'all';
+/* ============================
+   No auth — database rules are fully open. Just show the admin UI.
+   ============================ */
+const $app = document.getElementById('app');
+$app.style.display = '';
+// initAdmin() is called at the end after all buttons/dropdowns are wired.
 
-  function buildIndex(data) {
-    var items = [];
-    Object.keys(data || {}).forEach(function (cId) {
-      var cName = (data[cId] && data[cId].name) || cId;
-      var cSlug = (data[cId] && data[cId].slug) || generateSlug(cName);
-      var subs = (data[cId] && data[cId].subjects) || {};
-      Object.keys(subs).forEach(function (sId) {
-        var sName = (subs[sId] && subs[sId].name) || sId;
-        var sSlug = (subs[sId] && subs[sId].slug) || generateSlug(sName);
-        var chs = (subs[sId] && subs[sId].chapters) || {};
-        Object.keys(chs).forEach(function (chId) {
-          var chName = (chs[chId] && chs[chId].name) || chId;
-          var chSlug = (chs[chId] && chs[chId].slug) || generateSlug(chName);
-          var qs = (chs[chId] && chs[chId].questions) || {};
-          Object.keys(qs).forEach(function (qId) {
-            items.push({
-              id: qId,
-              classId: cId,
-              className: cName,
-              classSlug: cSlug,
-              subjectId: sId,
-              subjectName: sName,
-              subjectSlug: sSlug,
-              chapterId: chId,
-              chapterName: chName,
-              chapterSlug: chSlug,
-              type: String((qs[qId] && qs[qId].type) || ''),
-              question: String((qs[qId] && qs[qId].question) || ''),
-              answer: String((qs[qId] && qs[qId].answer) || '')
-            });
-          });
-        });
-      });
-    });
-    return items;
-  }
+/* ============================
+   Toast
+   ============================ */
+const $toast = document.getElementById('toast');
+let toastTimer = null;
+function showToast(msg, kind = 'success', dur = 2200) {
+  $toast.textContent = msg;
+  $toast.classList.remove('success', 'error');
+  $toast.classList.add(kind);
+  $toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $toast.classList.remove('show'), dur);
+}
 
-  function renderBoardFilters() {
-    var boards = [];
-    var seen = {};
-    classes.forEach(function (c) {
-      var board = (c.board || 'Classes').trim() || 'Classes';
-      if (!seen[board]) { seen[board] = true; boards.push({ title: board, order: Number(c.boardOrder == null ? 9999 : c.boardOrder) }); }
-    });
-    boards.sort(function (a, b) {
-      if (a.order !== b.order) return a.order - b.order;
-      return String(a.title).localeCompare(String(b.title), undefined, { numeric: true });
-    });
-    if (!boards.length || boards.length === 1) { $boardFilters.style.display = 'none'; return; }
-    $boardFilters.style.display = 'flex';
-    $boardFilters.innerHTML = '<button class="filter-chip ' + (selectedBoard === 'all' ? 'active' : '') + '" data-board="all">All</button>' +
-      boards.map(function (b) {
-        return '<button class="filter-chip ' + (selectedBoard === b.title ? 'active' : '') + '" data-board="' + escapeHtml(b.title) + '">' + escapeHtml(b.title) + '</button>';
-      }).join('');
-    Array.prototype.forEach.call($boardFilters.querySelectorAll('[data-board]'), function (btn) {
-      btn.addEventListener('click', function () {
-        selectedBoard = btn.getAttribute('data-board') || 'all';
-        renderBoardFilters();
-        renderClassList();
-      });
-    });
-  }
+function escapeHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
-  function renderClassList() {
-    if (!classes.length) {
-      $content.innerHTML = '<div class="empty">No classes available yet.</div>';
-      return;
-    }
+function generateSlug(name) {
+  return String(name || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]+/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
 
-    renderBoardFilters();
-    var groups = [];
-    var byBoard = {};
-    classes.forEach(function (c) {
-      var board = (c.board || 'Classes').trim() || 'Classes';
-      if (selectedBoard !== 'all' && board !== selectedBoard) return;
-      if (!byBoard[board]) {
-        byBoard[board] = { title: board, order: Number(c.boardOrder == null ? 9999 : c.boardOrder), items: [] };
-        groups.push(byBoard[board]);
-      }
-      byBoard[board].items.push(c);
-    });
-    groups.sort(function (a, b) {
-      if (a.order !== b.order) return a.order - b.order;
-      return String(a.title).localeCompare(String(b.title), undefined, { numeric: true });
-    });
-    if (!groups.length) {
-      selectedBoard = 'all';
-      renderClassList();
-      return;
-    }
+// Extract a displayable name from either a string ("Class 10")
+// or an object ({ name: "Class 10" }), or return '' for null.
+function getName(o) {
+  if (o == null) return '';
+  if (typeof o === 'object' && o.name != null) return String(o.name);
+  return String(o);
+}
 
-    $content.innerHTML = groups.map(function (g) {
-      g.items.sort(function (a, b) {
-        var ao = Number(a.order == null ? 9999 : a.order);
-        var bo = Number(b.order == null ? 9999 : b.order);
-        if (ao !== bo) return ao - bo;
-        return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true });
-      });
-      return '<section class="board-section">' +
-             '<div class="board-title">' + escapeHtml(g.title) + '</div>' +
-             '<div class="list">' + g.items.map(function (c) {
-               var sc = Number(c.subjectCount || 0);
-               var countText = sc ? (sc === 1 ? '1 subject' : sc + ' subjects') : '—';
-               return '<a class="list-item" href="' + buildUrl('subjects.html', { class: c.slug }) + '">' +
-                      svgIcon('class') +
-                      '<span class="card-main"><span class="card-title">' + escapeHtml(c.name || c.id) + '</span>' +
-                      '<span class="card-subtitle">' + escapeHtml(g.title) + '</span></span>' +
-                      '<span class="count">' + countText + '</span>' +
-                      '<span class="arrow">›</span></a>';
-             }).join('') + '</div></section>';
-    }).join('');
-  }
-
-  function ensureSearchIndex() {
-    if (allData) return Promise.resolve(allData);
-    if (searchIndexPromise) return searchIndexPromise;
-
-    setUpdating(true);
-    searchIndexPromise = refreshTree().then(function (data) {
-      allData = data || {};
-      allQuestions = buildIndex(allData);
-      setUpdating(false);
-      return allData;
-    }).catch(function (err) {
-      setUpdating(false);
-      searchIndexPromise = null;
-      throw err;
-    });
-    return searchIndexPromise;
-  }
-
-  function doSearch() {
-    var q = ($search.value || '').trim();
-    var qLow = q.toLowerCase();
-    $clear.style.display = q ? 'flex' : 'none';
-
-    if (!q) {
-      renderClassList();
-      return;
-    }
-    $boardFilters.style.display = 'none';
-
-    if (!allData) {
-      $content.innerHTML = '<div class="skeleton-heading"></div><div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>';
-      ensureSearchIndex().then(doSearch).catch(function (err) {
-        $content.innerHTML = '<div class="error-banner">Failed to search: ' +
-                             escapeHtml(err.message || 'Unknown error') + '</div>';
-      });
-      return;
-    }
-
-    if (!allQuestions.length) {
-      $content.innerHTML = '<div class="empty">No questions in database yet.</div>';
-      return;
-    }
-
-    var filtered = allQuestions.filter(function (it) {
-      return (it.question || '').toLowerCase().includes(qLow) ||
-             (it.type || '').toLowerCase().includes(qLow);
-    });
-    if (!filtered.length) {
-      $content.innerHTML = '<div class="empty">No questions match &ldquo;' +
-                           escapeHtml(q) + '&rdquo;.<br>Try a different keyword.</div>';
-      return;
-    }
-
-    var groups = new Map();
-    filtered.forEach(function (it) {
-      var key = it.classId + '||' + it.subjectId + '||' + it.chapterId;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          classId: it.classId, subjectId: it.subjectId, chapterId: it.chapterId,
-          className: it.className, subjectName: it.subjectName, chapterName: it.chapterName,
-          classSlug: it.classSlug, subjectSlug: it.subjectSlug, chapterSlug: it.chapterSlug,
-          items: []
-        });
-      }
-      groups.get(key).items.push(it);
-    });
-
-    var html = '<div class="search-meta">' + filtered.length +
-               ' result' + (filtered.length === 1 ? '' : 's') +
-               ' for &ldquo;' + escapeHtml(q) + '&rdquo;</div>';
-
-    groups.forEach(function (g) {
-      html += '<div class="search-group">';
-      html += '<div class="search-group-path">';
-      html += '<a href="' + buildUrl('subjects.html', { class: g.classSlug }) + '">' +
-              escapeHtml(g.className) + '</a>';
-      html += '<span class="crumb-sep">›</span>';
-      html += '<a href="' + buildUrl('chapters.html', { class: g.classSlug, subject: g.subjectSlug }) + '">' +
-              escapeHtml(g.subjectName) + '</a>';
-      html += '<span class="crumb-sep">›</span>';
-      html += '<span class="current">' + escapeHtml(g.chapterName) + '</span>';
-      html += '</div><div class="search-group-list">';
-      g.items.forEach(function (it, idx) {
-        var url = buildUrl('answer.html', {
-          class: it.classSlug, subject: it.subjectSlug,
-          chapter: it.chapterSlug, qId: it.id
-        });
-        html += '<a class="search-result" href="' + url + '">';
-        html += svgIcon('question');
-        html += '<div class="result-body">';
-        if (it.type) html += '<div class="result-type">' + escapeHtml(it.type) + '</div>';
-        html += '<div class="result-text">' + escapeHtml(it.question) + '</div>';
-        html += '</div><span class="arrow">›</span></a>';
-      });
-      html += '</div></div>';
-    });
-
-    $content.innerHTML = html;
-  }
-
-  function loadClasses() {
-    if (!navigator.onLine) {
-      $content.innerHTML = '<div class="error-banner">You are offline. Please connect to the internet and reload.</div>';
-      return;
-    }
-
-    setUpdating(true);
-    getClassSummaries().then(function (list) {
-      setUpdating(false);
-      classes = list || [];
-      var m = (window.location.hash || '').match(/^#q=(.*)$/);
-      if (m && m[1]) { try { $search.value = decodeURIComponent(m[1]); } catch (e) {} }
-      setPageMeta({
-        title: 'Classes — Q&A Student',
-        description: 'Browse educational questions and answers by class, subject and chapter.',
-        canonical: window.location.href
-      });
-      doSearch();
-    }).catch(function (err) {
-      setUpdating(false);
-      $content.innerHTML = '<div class="error-banner">Failed to load classes: ' +
-                           escapeHtml(err.message || 'Unknown error') + '</div>';
-    });
-  }
-
-  $search.addEventListener('input', function () {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function () {
-      var q = ($search.value || '').trim();
-      var newHash = q ? '#q=' + encodeURIComponent(q) : '';
-      if ((window.location.hash || '') !== newHash) {
-        history.replaceState(null, '', window.location.pathname + (newHash || ''));
-      }
-      doSearch();
-    }, 180);
+/* ============================
+   Tab navigation
+   ============================ */
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById('tab-' + btn.dataset.tab);
+    if (panel) panel.classList.add('active');
   });
-  $search.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      $search.value = '';
-      history.replaceState(null, '', window.location.pathname);
-      doSearch();
+});
+
+/* ============================
+   Cached data + persistent listeners
+   (each listener is attached once per key and stays attached)
+   ============================ */
+const cache = {
+  classes: {},     // {id: name}
+  subjects: {},    // {classId: {id: name}}
+  chapters: {},    // {classId+'||'+subjectId: {id: name}}
+  questions: {}    // {classId+'||'+subjectId+'||'+chapterId: {id: {type,question,answer}}}
+};
+
+const listenerOffs = []; // collected so we can detach on unload if ever needed
+
+const refClasses   = () => db.ref('/classes');
+const refSubjects  = cId => db.ref(`/classes/${cId}/subjects`);
+const refChapters  = (cId, sId) => db.ref(`/classes/${cId}/subjects/${sId}/chapters`);
+const refQuestions = (cId, sId, chId) => db.ref(`/classes/${cId}/subjects/${sId}/chapters/${chId}/questions`);
+
+function key3(a,b,c) { return a + '||' + b + '||' + c; }
+function key2(a,b)   { return a + '||' + b; }
+
+/* Attach-once listeners for subjects / chapters / questions */
+function ensureSubjectListener(cId) {
+  if (!cId || cache._subjectListener && cache._subjectListener[cId]) return;
+  cache._subjectListener = cache._subjectListener || {};
+  if (cache._subjectListener[cId]) return;
+  cache.subjects[cId] = cache.subjects[cId] || {};
+  const ref = refSubjects(cId);
+  const cb = snap => {
+    cache.subjects[cId] = snap.val() || {};
+    onSubjectsChanged(cId);
+  };
+  ref.on('value', cb);
+  cache._subjectListener[cId] = () => ref.off('value', cb);
+}
+function ensureChapterListener(cId, sId) {
+  if (!cId || !sId) return;
+  cache._chapterListener = cache._chapterListener || {};
+  const key = key2(cId, sId);
+  if (cache._chapterListener[key]) return;
+  cache.chapters[key] = cache.chapters[key] || {};
+  const ref = refChapters(cId, sId);
+  const cb = snap => {
+    cache.chapters[key] = snap.val() || {};
+    onChaptersChanged(cId, sId);
+  };
+  ref.on('value', cb);
+  cache._chapterListener[key] = () => ref.off('value', cb);
+}
+function ensureQuestionListener(cId, sId, chId) {
+  if (!cId || !sId || !chId) return;
+  cache._questionListener = cache._questionListener || {};
+  const key = key3(cId, sId, chId);
+  if (cache._questionListener[key]) return;
+  cache.questions[key] = cache.questions[key] || {};
+  const ref = refQuestions(cId, sId, chId);
+  const cb = snap => {
+    cache.questions[key] = snap.val() || {};
+    onQuestionsChanged(cId, sId, chId);
+  };
+  ref.on('value', cb);
+  cache._questionListener[key] = () => ref.off('value', cb);
+}
+
+/* Global callbacks fired whenever data changes — refresh every dependent UI */
+function onClassesChanged() {
+  renderClassList();
+  populateAllClassDropdowns();
+  // Selected class in any tab may now be invalid
+  [$subjectClassSel, $chapterClassSel, $qClassSel, $bClassSel].forEach(sel => {
+    if (sel.value && cache.classes[sel.value] === undefined) {
+      sel.value = '';
+      // cascade disable
+      onAnyClassChanged(sel);
     }
   });
-  $clear.addEventListener('click', function () {
-    $search.value = '';
-    history.replaceState(null, '', window.location.pathname);
-    doSearch();
-    $search.focus();
+}
+function onSubjectsChanged(cId) {
+  renderSubjectList();
+  populateSubjectDropdown($chapterSubjectSel, $chapterClassSel.value);
+  populateSubjectDropdown($qSubjectSel, $qClassSel.value);
+  populateSubjectDropdown($bSubjectSel, $bClassSel.value);
+  // Selected subject may now be invalid (for the tab that owns this class)
+  [$chapterSubjectSel, $qSubjectSel, $bSubjectSel].forEach(sel => {
+    const selCId = sel === $chapterSubjectSel ? $chapterClassSel.value
+                 : sel === $qSubjectSel ? $qClassSel.value
+                 : $bClassSel.value;
+    if (selCId === cId && sel.value && (cache.subjects[cId] || {})[sel.value] === undefined) {
+      sel.value = '';
+      onAnySubjectChanged(sel);
+    }
   });
+}
+function onChaptersChanged(cId, sId) {
+  renderChapterList();
+  populateChapterDropdown($qChapterSel, $qClassSel.value, $qSubjectSel.value);
+  populateChapterDropdown($bChapterSel, $bClassSel.value, $bSubjectSel.value);
+  [$qChapterSel, $bChapterSel].forEach(sel => {
+    const selCId = sel === $qChapterSel ? $qClassSel.value : $bClassSel.value;
+    const selSId = sel === $qChapterSel ? $qSubjectSel.value : $bSubjectSel.value;
+    if (selCId === cId && selSId === sId && sel.value) {
+      const key = key2(selCId, selSId);
+      if ((cache.chapters[key] || {})[sel.value] === undefined) {
+        sel.value = '';
+        onAnyChapterChanged(sel);
+      }
+    }
+  });
+}
+function onQuestionsChanged(cId, sId, chId) {
+  renderQuestionList();
+}
 
-  loadClasses();
-})();
+/* ============================
+   Init
+   ============================ */
+function initAdmin() {
+  const cRef = refClasses();
+  const cOff = cRef.on('value', snap => {
+    cache.classes = snap.val() || {};
+    onClassesChanged();
+  });
+  listenerOffs.push(() => cRef.off('value', cOff));
+}
+
+/* Cascade helpers when a selection becomes invalid */
+function onAnyClassChanged(sel) {
+  // Disable dependent dropdowns / buttons for the tab owning `sel`
+  if (sel === $chapterClassSel) {
+    $chapterSubjectSel.innerHTML = '<option value="">— select class first —</option>';
+    $chapterSubjectSel.disabled = true;
+    $addChapterBtn.disabled = true;
+    renderChapterList();
+  } else if (sel === $qClassSel) {
+    $qSubjectSel.innerHTML = '<option value="">— select class first —</option>';
+    $qSubjectSel.disabled = true;
+    $qChapterSel.innerHTML = '<option value="">— select subject first —</option>';
+    $qChapterSel.disabled = true;
+    $addQuestionBtn.disabled = true;
+    renderQuestionList();
+  } else if (sel === $bClassSel) {
+    $bSubjectSel.innerHTML = '<option value="">— select class first —</option>';
+    $bSubjectSel.disabled = true;
+    $bChapterSel.innerHTML = '<option value="">— select subject first —</option>';
+    $bChapterSel.disabled = true;
+    $bulkUploadBtn.disabled = true;
+  } else if (sel === $subjectClassSel) {
+    $addSubjectBtn.disabled = true;
+    renderSubjectList();
+  }
+}
+function onAnySubjectChanged(sel) {
+  if (sel === $chapterSubjectSel) {
+    $addChapterBtn.disabled = true;
+    renderChapterList();
+  } else if (sel === $qSubjectSel) {
+    $qChapterSel.innerHTML = '<option value="">— select subject first —</option>';
+    $qChapterSel.disabled = true;
+    $addQuestionBtn.disabled = true;
+    renderQuestionList();
+  } else if (sel === $bSubjectSel) {
+    $bChapterSel.innerHTML = '<option value="">— select subject first —</option>';
+    $bChapterSel.disabled = true;
+    $bulkUploadBtn.disabled = true;
+  }
+}
+function onAnyChapterChanged(sel) {
+  if (sel === $qChapterSel) {
+    $addQuestionBtn.disabled = true;
+    renderQuestionList();
+  } else if (sel === $bChapterSel) {
+    $bulkUploadBtn.disabled = true;
+  }
+}
+
+/* ============================
+   TAB 1 — Add / Update Class
+   ============================ */
+const $className = document.getElementById('className');
+const $classBoard = document.getElementById('classBoard');
+const $classBoardOrder = document.getElementById('classBoardOrder');
+const $classOrder = document.getElementById('classOrder');
+const $classSlug = document.getElementById('classSlug');
+const $addClassBtn = document.getElementById('addClassBtn');
+const $cancelEditClassBtn = document.getElementById('cancelEditClassBtn');
+const $classList = document.getElementById('classList');
+let editingClassId = null;
+
+function numOrDefault(value, def) {
+  if (value == null || String(value).trim() === '') return def;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : def;
+}
+function classBoardOf(id) {
+  const c = cache.classes[id] || {};
+  return (c && typeof c === 'object' && c.board) ? String(c.board) : 'Classes';
+}
+function classBoardOrderOf(id) {
+  const c = cache.classes[id] || {};
+  return numOrDefault(c && c.boardOrder, 9999);
+}
+function classOrderOf(id) {
+  const c = cache.classes[id] || {};
+  return numOrDefault(c && c.order, 9999);
+}
+function sortClassIds(ids) {
+  return ids.slice().sort((a,b) => {
+    const bo = classBoardOrderOf(a) - classBoardOrderOf(b);
+    if (bo) return bo;
+    const bc = classBoardOf(a).localeCompare(classBoardOf(b), undefined, {numeric:true});
+    if (bc) return bc;
+    const co = classOrderOf(a) - classOrderOf(b);
+    if (co) return co;
+    return getName(cache.classes[a]).localeCompare(getName(cache.classes[b]), undefined, {numeric:true});
+  });
+}
+function classLabel(id) {
+  const name = getName(cache.classes[id]) || id;
+  const board = classBoardOf(id);
+  return (board ? board + ' › ' : '') + name;
+}
+function resetClassForm() {
+  editingClassId = null;
+  $className.value = '';
+  $classBoard.value = '';
+  $classBoardOrder.value = '';
+  $classOrder.value = '';
+  $classSlug.value = '';
+  $addClassBtn.textContent = 'Add Class';
+  $cancelEditClassBtn.style.display = 'none';
+}
+function editClass(id) {
+  const c = cache.classes[id] || {};
+  editingClassId = id;
+  $className.value = getName(c);
+  $classBoard.value = (c && typeof c === 'object' && c.board) ? c.board : 'Classes';
+  $classBoardOrder.value = (c && typeof c === 'object' && c.boardOrder != null) ? c.boardOrder : '';
+  $classOrder.value = (c && typeof c === 'object' && c.order != null) ? c.order : '';
+  $classSlug.value = (c && typeof c === 'object' && c.slug) ? c.slug : generateSlug(getName(c));
+  $addClassBtn.textContent = 'Save Class';
+  $cancelEditClassBtn.style.display = '';
+  document.querySelector('[data-tab="class"]').click();
+  $className.focus();
+}
+
+$cancelEditClassBtn.addEventListener('click', resetClassForm);
+$addClassBtn.addEventListener('click', () => {
+  const name = ($className.value || '').trim();
+  if (!name) { showToast('Enter a class name', 'error'); return; }
+  const data = {
+    name,
+    slug: ($classSlug.value || '').trim() || generateSlug(name),
+    board: ($classBoard.value || '').trim() || 'Classes',
+    boardOrder: numOrDefault($classBoardOrder.value, 9999),
+    order: numOrDefault($classOrder.value, 9999)
+  };
+  $addClassBtn.disabled = true;
+  const op = editingClassId ? db.ref(`/classes/${editingClassId}`).update(data) : refClasses().push(data);
+  op.then(() => {
+      showToast(editingClassId ? 'Class updated' : 'Class added', 'success');
+      resetClassForm();
+    })
+    .catch(err => showToast('Failed: ' + err.message, 'error'))
+    .finally(() => { $addClassBtn.disabled = false; });
+});
+
+function renderClassList() {
+  const ids = Object.keys(cache.classes);
+  if (!ids.length) { $classList.innerHTML = '<div class="empty">No classes yet.</div>'; return; }
+  const sorted = sortClassIds(ids);
+  $classList.innerHTML = sorted.map(id => {
+    const c = cache.classes[id] || {};
+    const name = escapeHtml(getName(c));
+    const board = escapeHtml(classBoardOf(id));
+    const slug = escapeHtml(c.slug || generateSlug(getName(c)));
+    const meta = `Slug: ${slug} • Board: ${board} • Board order: ${classBoardOrderOf(id)} • Class order: ${classOrderOf(id)}`;
+    return `<div class="list-item"><div class="li-body"><div class="li-text">${name}</div><div class="li-meta">${meta}</div></div><button class="edit-btn" data-edit-class="${id}">Edit</button><button class="del-btn" data-del-class="${id}">Delete</button></div>`;
+  }).join('');
+  $classList.querySelectorAll('[data-edit-class]').forEach(b => {
+    b.addEventListener('click', () => editClass(b.dataset.editClass));
+  });
+  $classList.querySelectorAll('[data-del-class]').forEach(b => {
+    b.addEventListener('click', () => deleteClass(b.dataset.delClass));
+  });
+}
+
+function deleteClass(id) {
+  if (!confirm('Delete this class and ALL its subjects, chapters & questions?')) return;
+  db.ref(`/classes/${id}`).remove()
+    .then(() => { if (editingClassId === id) resetClassForm(); showToast('Class deleted', 'success'); })
+    .catch(err => showToast('Delete failed: ' + err.message, 'error'));
+}
+
+/* ============================
+   TAB 2 — Add Subject
+   ============================ */
+const $subjectClassSel = document.getElementById('subjectClassSel');
+const $subjectName = document.getElementById('subjectName');
+const $addSubjectBtn = document.getElementById('addSubjectBtn');
+const $subjectList = document.getElementById('subjectList');
+const $subjectListFor = document.getElementById('subjectListFor');
+
+$subjectClassSel.addEventListener('change', () => {
+  if ($subjectClassSel.value) ensureSubjectListener($subjectClassSel.value);
+  $addSubjectBtn.disabled = !$subjectClassSel.value;
+  renderSubjectList();
+});
+$addSubjectBtn.addEventListener('click', () => {
+  const cId = $subjectClassSel.value;
+  const name = ($subjectName.value || '').trim();
+  if (!cId) { showToast('Select a class', 'error'); return; }
+  if (!name) { showToast('Enter a subject name', 'error'); return; }
+  $addSubjectBtn.disabled = true;
+  refSubjects(cId).push({ name, slug: generateSlug(name) })
+    .then(() => {
+      $subjectName.value = '';
+      showToast('Subject added', 'success');
+    })
+    .catch(err => showToast('Failed: ' + err.message, 'error'))
+    .finally(() => { $addSubjectBtn.disabled = !$subjectClassSel.value; });
+});
+
+function renderSubjectList() {
+  const cId = $subjectClassSel.value;
+  $subjectListFor.textContent = cId ? `for "${escapeHtml(getName(cache.classes[cId]))}"` : '';
+  if (!cId) { $subjectList.innerHTML = '<div class="empty">Select a class above.</div>'; return; }
+  const subs = cache.subjects[cId] || {};
+  const ids = Object.keys(subs);
+  if (!ids.length) { $subjectList.innerHTML = '<div class="empty">No subjects yet.</div>'; return; }
+  const sorted = ids.slice().sort((a,b) => getName(subs[a]).localeCompare(getName(subs[b]), undefined, {numeric:true}));
+  $subjectList.innerHTML = sorted.map(id => {
+    const name = escapeHtml(getName(subs[id]));
+    const slug = escapeHtml((subs[id] && subs[id].slug) || generateSlug(getName(subs[id])));
+    return `<div class="list-item"><div class="li-body"><span class="li-text">${name}</span><div class="li-meta">Slug: ${slug}</div></div><button class="del-btn" data-del-sub="${id}">Delete</button></div>`;
+  }).join('');
+  $subjectList.querySelectorAll('[data-del-sub]').forEach(b => {
+    b.addEventListener('click', () => deleteSubject(cId, b.dataset.delSub));
+  });
+}
+
+function deleteSubject(cId, sId) {
+  if (!confirm('Delete this subject and ALL its chapters & questions?')) return;
+  db.ref(`/classes/${cId}/subjects/${sId}`).remove()
+    .then(() => showToast('Subject deleted', 'success'))
+    .catch(err => showToast('Delete failed: ' + err.message, 'error'));
+}
+
+/* ============================
+   TAB 3 — Add Chapter
+   ============================ */
+const $chapterClassSel = document.getElementById('chapterClassSel');
+const $chapterSubjectSel = document.getElementById('chapterSubjectSel');
+const $chapterName = document.getElementById('chapterName');
+const $addChapterBtn = document.getElementById('addChapterBtn');
+const $chapterList = document.getElementById('chapterList');
+const $chapterListFor = document.getElementById('chapterListFor');
+
+$chapterClassSel.addEventListener('change', () => {
+  if ($chapterClassSel.value) ensureSubjectListener($chapterClassSel.value);
+  populateSubjectDropdown($chapterSubjectSel, $chapterClassSel.value);
+  $chapterSubjectSel.disabled = !$chapterClassSel.value;
+  $addChapterBtn.disabled = true;
+  renderChapterList();
+});
+$chapterSubjectSel.addEventListener('change', () => {
+  if ($chapterClassSel.value && $chapterSubjectSel.value)
+    ensureChapterListener($chapterClassSel.value, $chapterSubjectSel.value);
+  $addChapterBtn.disabled = !($chapterClassSel.value && $chapterSubjectSel.value);
+  renderChapterList();
+});
+$addChapterBtn.addEventListener('click', () => {
+  const cId = $chapterClassSel.value, sId = $chapterSubjectSel.value;
+  const name = ($chapterName.value || '').trim();
+  if (!cId || !sId) { showToast('Select class & subject', 'error'); return; }
+  if (!name) { showToast('Enter a chapter name', 'error'); return; }
+  $addChapterBtn.disabled = true;
+  refChapters(cId, sId).push({ name, slug: generateSlug(name) })
+    .then(() => {
+      $chapterName.value = '';
+      showToast('Chapter added', 'success');
+    })
+    .catch(err => showToast('Failed: ' + err.message, 'error'))
+    .finally(() => { $addChapterBtn.disabled = !($chapterClassSel.value && $chapterSubjectSel.value); });
+});
+
+function renderChapterList() {
+  const cId = $chapterClassSel.value, sId = $chapterSubjectSel.value;
+  $chapterListFor.textContent = (cId && sId) ? `for "${escapeHtml(getName(cache.classes[cId]))}" › "${escapeHtml(getName((cache.subjects[cId]||{})[sId]))}"` : '';
+  if (!cId || !sId) { $chapterList.innerHTML = '<div class="empty">Select class & subject above.</div>'; return; }
+  const key = key2(cId, sId);
+  const chs = cache.chapters[key] || {};
+  const ids = Object.keys(chs);
+  if (!ids.length) { $chapterList.innerHTML = '<div class="empty">No chapters yet.</div>'; return; }
+  const sorted = ids.slice().sort((a,b) => String(chs[a].name).localeCompare(String(chs[b].name), undefined, {numeric:true}));
+  $chapterList.innerHTML = sorted.map(id => {
+    const name = escapeHtml(chs[id].name);
+    const slug = escapeHtml((chs[id] && chs[id].slug) || generateSlug(chs[id].name));
+    return `<div class="list-item"><div class="li-body"><span class="li-text">${name}</span><div class="li-meta">Slug: ${slug}</div></div><button class="del-btn" data-del-ch="${id}">Delete</button></div>`;
+  }).join('');
+  $chapterList.querySelectorAll('[data-del-ch]').forEach(b => {
+    b.addEventListener('click', () => deleteChapter(cId, sId, b.dataset.delCh));
+  });
+}
+
+function deleteChapter(cId, sId, chId) {
+  if (!confirm('Delete this chapter and ALL its questions?')) return;
+  db.ref(`/classes/${cId}/subjects/${sId}/chapters/${chId}`).remove()
+    .then(() => showToast('Chapter deleted', 'success'))
+    .catch(err => showToast('Delete failed: ' + err.message, 'error'));
+}
+
+/* ============================
+   TAB 4 — Add Question & Answer
+   ============================ */
+const $qClassSel = document.getElementById('qClassSel');
+const $qSubjectSel = document.getElementById('qSubjectSel');
+const $qChapterSel = document.getElementById('qChapterSel');
+const $qTypeSel = document.getElementById('qTypeSel');
+const $qTypeCustomRow = document.getElementById('qTypeCustomRow');
+const $qTypeCustom = document.getElementById('qTypeCustom');
+const $qQuestion = document.getElementById('qQuestion');
+const $qAnswer = document.getElementById('qAnswer');
+const $qImageUrl = document.getElementById('qImageUrl');
+const $addQuestionBtn = document.getElementById('addQuestionBtn');
+const $questionList = document.getElementById('questionList');
+const $questionListFor = document.getElementById('questionListFor');
+
+$qClassSel.addEventListener('change', () => {
+  if ($qClassSel.value) ensureSubjectListener($qClassSel.value);
+  populateSubjectDropdown($qSubjectSel, $qClassSel.value);
+  $qSubjectSel.disabled = !$qClassSel.value;
+  $qChapterSel.innerHTML = '<option value="">— select subject first —</option>';
+  $qChapterSel.disabled = true;
+  $addQuestionBtn.disabled = true;
+  renderQuestionList();
+});
+$qSubjectSel.addEventListener('change', () => {
+  if ($qClassSel.value && $qSubjectSel.value)
+    ensureChapterListener($qClassSel.value, $qSubjectSel.value);
+  populateChapterDropdown($qChapterSel, $qClassSel.value, $qSubjectSel.value);
+  $qChapterSel.disabled = !($qClassSel.value && $qSubjectSel.value);
+  $addQuestionBtn.disabled = true;
+  renderQuestionList();
+});
+$qChapterSel.addEventListener('change', () => {
+  if ($qClassSel.value && $qSubjectSel.value && $qChapterSel.value)
+    ensureQuestionListener($qClassSel.value, $qSubjectSel.value, $qChapterSel.value);
+  $addQuestionBtn.disabled = !($qClassSel.value && $qSubjectSel.value && $qChapterSel.value);
+  renderQuestionList();
+});
+
+$qTypeSel.addEventListener('change', () => {
+  $qTypeCustomRow.style.display = $qTypeSel.value === '__custom__' ? '' : 'none';
+});
+
+$addQuestionBtn.addEventListener('click', () => {
+  const cId = $qClassSel.value, sId = $qSubjectSel.value, chId = $qChapterSel.value;
+  let type = $qTypeSel.value;
+  if (type === '__custom__') type = ($qTypeCustom.value || '').trim();
+  const question = ($qQuestion.value || '').trim();
+  const answer = ($qAnswer.value || '').trim();
+  const imageUrl = ($qImageUrl.value || '').trim();
+  if (!cId || !sId || !chId) { showToast('Select class, subject & chapter', 'error'); return; }
+  if (!type) { showToast('Select or enter a question type', 'error'); return; }
+  if (!question) { showToast('Enter a question', 'error'); return; }
+  $addQuestionBtn.disabled = true;
+  refQuestions(cId, sId, chId).push(Object.assign({ type, question, answer }, imageUrl ? { imageUrl } : {}))
+    .then(() => {
+      $qQuestion.value = '';
+      $qAnswer.value = '';
+      $qImageUrl.value = '';
+      if ($qTypeSel.value === '__custom__') $qTypeCustom.value = '';
+      showToast('Question added', 'success');
+    })
+    .catch(err => showToast('Failed: ' + err.message, 'error'))
+    .finally(() => { $addQuestionBtn.disabled = !($qClassSel.value && $qSubjectSel.value && $qChapterSel.value); });
+});
+
+function renderQuestionList() {
+  const cId = $qClassSel.value, sId = $qSubjectSel.value, chId = $qChapterSel.value;
+  const chapName = (cId && sId) ? ((cache.chapters[key2(cId, sId)] || {})[chId] || {}).name : '';
+  $questionListFor.textContent = (cId && sId && chId) ? `in "${escapeHtml(chapName || '')}"` : '';
+  if (!cId || !sId || !chId) { $questionList.innerHTML = '<div class="empty">Select class, subject & chapter above.</div>'; return; }
+  const key = key3(cId, sId, chId);
+  const qs = cache.questions[key] || {};
+  const ids = Object.keys(qs);
+  if (!ids.length) { $questionList.innerHTML = '<div class="empty">No questions yet.</div>'; return; }
+  $questionList.innerHTML = ids.map(id => {
+    const q = qs[id];
+    const meta = escapeHtml((q.type || '') + (q.imageUrl || q.image ? ' • image' : ''));
+    const text = escapeHtml((q.question || '').slice(0, 80)) + ((q.question||'').length > 80 ? '…' : '');
+    return `<div class="list-item"><div class="li-body"><div class="li-text">${text}</div><div class="li-meta">${meta}</div></div><button class="del-btn" data-del-q="${id}">Delete</button></div>`;
+  }).join('');
+  $questionList.querySelectorAll('[data-del-q]').forEach(b => {
+    b.addEventListener('click', () => deleteQuestion(cId, sId, chId, b.dataset.delQ));
+  });
+}
+
+function deleteQuestion(cId, sId, chId, qId) {
+  if (!confirm('Delete this question?')) return;
+  db.ref(`/classes/${cId}/subjects/${sId}/chapters/${chId}/questions/${qId}`).remove()
+    .then(() => showToast('Question deleted', 'success'))
+    .catch(err => showToast('Delete failed: ' + err.message, 'error'));
+}
+
+/* ============================
+   TAB 5 — Bulk Upload
+   ============================ */
+const $bClassSel = document.getElementById('bClassSel');
+const $bSubjectSel = document.getElementById('bSubjectSel');
+const $bChapterSel = document.getElementById('bChapterSel');
+const $bFileInput = document.getElementById('bFileInput');
+const $bFileName = document.getElementById('bFileName');
+const $bJsonArea = document.getElementById('bJsonArea');
+const $bulkUploadBtn = document.getElementById('bulkUploadBtn');
+const $bulkLoader = document.getElementById('bulkLoader');
+const $bulkLoaderText = document.getElementById('bulkLoaderText');
+let bulkBusy = false;
+
+function setBulkLoading(on, text) {
+  bulkBusy = !!on;
+  if ($bulkLoader) $bulkLoader.classList.toggle('show', !!on);
+  if ($bulkLoaderText && text) $bulkLoaderText.textContent = text;
+  $bulkUploadBtn.disabled = !!on || !($bClassSel.value && $bSubjectSel.value && $bChapterSel.value);
+  $bClassSel.disabled = !!on;
+  $bSubjectSel.disabled = !!on || !$bClassSel.value;
+  $bChapterSel.disabled = !!on || !($bClassSel.value && $bSubjectSel.value);
+  $bFileInput.disabled = !!on;
+  $bJsonArea.disabled = !!on;
+}
+
+$bClassSel.addEventListener('change', () => {
+  if (bulkBusy) return;
+  if ($bClassSel.value) ensureSubjectListener($bClassSel.value);
+  populateSubjectDropdown($bSubjectSel, $bClassSel.value);
+  $bSubjectSel.disabled = !$bClassSel.value;
+  $bChapterSel.innerHTML = '<option value="">— select subject first —</option>';
+  $bChapterSel.disabled = true;
+  $bulkUploadBtn.disabled = true;
+});
+$bSubjectSel.addEventListener('change', () => {
+  if (bulkBusy) return;
+  if ($bClassSel.value && $bSubjectSel.value)
+    ensureChapterListener($bClassSel.value, $bSubjectSel.value);
+  populateChapterDropdown($bChapterSel, $bClassSel.value, $bSubjectSel.value);
+  $bChapterSel.disabled = !($bClassSel.value && $bSubjectSel.value);
+  $bulkUploadBtn.disabled = true;
+});
+$bChapterSel.addEventListener('change', () => {
+  if (bulkBusy) return;
+  $bulkUploadBtn.disabled = !($bClassSel.value && $bSubjectSel.value && $bChapterSel.value);
+});
+
+$bFileInput.addEventListener('change', e => {
+  if (bulkBusy) return;
+  const f = e.target.files[0];
+  if (!f) { $bFileName.textContent = 'No file chosen'; return; }
+  $bFileName.textContent = f.name;
+  setBulkLoading(true, 'Reading JSON file…');
+  const reader = new FileReader();
+  reader.onload = () => {
+    $bJsonArea.value = reader.result;
+    setBulkLoading(false);
+    showToast('File loaded', 'success');
+  };
+  reader.onerror = () => {
+    setBulkLoading(false);
+    showToast('Failed to read file', 'error');
+  };
+  reader.readAsText(f);
+});
+
+$bulkUploadBtn.addEventListener('click', () => {
+  const cId = $bClassSel.value, sId = $bSubjectSel.value, chId = $bChapterSel.value;
+  const raw = ($bJsonArea.value || '').trim();
+  if (!raw) { showToast('Paste or choose a JSON file', 'error'); return; }
+  let data;
+  try { data = JSON.parse(raw); }
+  catch (err) { showToast('Invalid JSON: ' + err.message, 'error'); return; }
+  if (!Array.isArray(data)) { showToast('JSON must be an array of questions', 'error'); return; }
+  if (!data.length) { showToast('Array is empty', 'error'); return; }
+  const valid = [];
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i];
+    if (!item || typeof item !== 'object') { showToast(`Item ${i+1}: not an object`, 'error'); return; }
+    const type = (item.type || '').toString().trim();
+    const question = (item.question || '').toString().trim();
+    const answer = (item.answer || '').toString();
+    const imageUrl = (item.imageUrl || item.imageURL || item.image || item.url || '').toString().trim();
+    if (!type) { showToast(`Item ${i+1}: missing "type"`, 'error'); return; }
+    if (!question) { showToast(`Item ${i+1}: missing "question"`, 'error'); return; }
+    valid.push(Object.assign({ type, question, answer }, imageUrl ? { imageUrl } : {}));
+  }
+  setBulkLoading(true, `Uploading ${valid.length} question${valid.length===1?'':'s'}…`);
+  const ref = refQuestions(cId, sId, chId);
+  const promises = valid.map(item => ref.push(item));
+  Promise.all(promises)
+    .then(() => {
+      $bJsonArea.value = '';
+      $bFileInput.value = '';
+      $bFileName.textContent = 'No file chosen';
+      showToast(`Uploaded ${valid.length} question${valid.length===1?'':'s'}`, 'success');
+    })
+    .catch(err => showToast('Upload failed: ' + err.message, 'error'))
+    .finally(() => { setBulkLoading(false); });
+});
+
+/* ============================
+   Dropdown population helpers
+   ============================ */
+function populateAllClassDropdowns() {
+  [$subjectClassSel, $chapterClassSel, $qClassSel, $bClassSel].forEach(sel => populateClassDropdown(sel));
+}
+function populateClassDropdown(sel) {
+  const prev = sel.value;
+  const ids = sortClassIds(Object.keys(cache.classes));
+  sel.innerHTML = '<option value="">— select —</option>' +
+    ids.map(id => `<option value="${id}">${escapeHtml(classLabel(id))}</option>`).join('');
+  if (prev && cache.classes[prev] !== undefined) sel.value = prev;
+}
+function populateSubjectDropdown(sel, cId) {
+  if (!cId) { sel.innerHTML = '<option value="">— select class first —</option>'; sel.value = ''; return; }
+  ensureSubjectListener(cId);
+  const subs = cache.subjects[cId] || {};
+  const prev = sel.value;
+  const ids = Object.keys(subs);
+  sel.innerHTML = '<option value="">— select —</option>' +
+    ids.slice().sort((a,b) => getName(subs[a]).localeCompare(getName(subs[b]), undefined, {numeric:true}))
+      .map(id => `<option value="${id}">${escapeHtml(getName(subs[id]))}</option>`).join('');
+  if (prev && subs[prev] !== undefined) sel.value = prev;
+}
+function populateChapterDropdown(sel, cId, sId) {
+  if (!cId || !sId) { sel.innerHTML = '<option value="">— select subject first —</option>'; sel.value = ''; return; }
+  ensureChapterListener(cId, sId);
+  const key = key2(cId, sId);
+  const chs = cache.chapters[key] || {};
+  const prev = sel.value;
+  const ids = Object.keys(chs);
+  sel.innerHTML = '<option value="">— select —</option>' +
+    ids.slice().sort((a,b) => String(chs[a].name).localeCompare(String(chs[b].name), undefined, {numeric:true}))
+      .map(id => `<option value="${id}">${escapeHtml(chs[id].name)}</option>`).join('');
+  if (prev && chs[prev] !== undefined) sel.value = prev;
+}
+
+// Start Firebase listeners only after all DOM variables and button handlers exist.
+initAdmin();
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e7049d3d248c3a',t:'MTc4MTkxOTEyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

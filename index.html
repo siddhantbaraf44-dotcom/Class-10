@@ -1,374 +1,276 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#f6f7fb" />
-<meta name="color-scheme" content="light" />
-<meta name="HandheldFriendly" content="true" />
-<meta name="format-detection" content="telephone=no" />
-<meta name="msapplication-tap-highlight" content="no" />
-<meta name="description" content="Free exercise questions and answers for Maharashtra Board SSC Class 10, HSC Class 12 and Class 8, 9, 11. One stop solution to score more in exams." />
-<link rel="canonical" href="https://qclasses.netlify.app/" />
-<title>Free Exercise Questions and Answers - Maharashtra Board Class 8, 9, 10, 11, 12 | QClasses</title>
-<meta name="robots" content="index, follow" />
-<link rel="manifest" href="manifest.webmanifest" />
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="QClasses" />
-<meta property="og:title" content="Free Exercise Questions and Answers - Maharashtra Board Class 8, 9, 10, 11, 12 | QClasses" />
-<meta property="og:description" content="Free exercise questions and answers for Maharashtra Board SSC Class 10, HSC Class 12 and Class 8, 9, 11. One stop solution to score more in exams." />
-<meta property="og:url" content="https://qclasses.netlify.app/" />
-<meta property="og:image" content="https://qclasses.netlify.app/icon-maskable-512.png" />
-
-
-<!-- Inline SVG favicon (no extra HTTP request). -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
-
-<link rel="preconnect" href="https://rosho-c2d11-default-rtdb.firebaseio.com" crossorigin />
-<link rel="dns-prefetch" href="https://rosho-c2d11-default-rtdb.firebaseio.com" />
-
-<link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Push Notifications</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0b0e1a;
+      color: #e8edf9;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      padding: 1.5rem;
+    }
+    .card {
+      max-width: 620px;
+      width: 100%;
+      background: rgba(22,28,46,0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 2rem;
+      padding: 2rem 2.5rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    h1 { font-weight: 600; font-size: 1.8rem; margin-bottom: 0.25rem; }
+    h1 span { color: #818cf8; }
+    p.sub { color: #9aa4c8; margin-bottom: 1.5rem; }
+    .section {
+      background: rgba(0,0,0,0.25);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .section h2 { font-size: 0.9rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7a9f; margin-bottom: 0.75rem; }
+    .flex { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover { background: #4f46e5; transform: translateY(-2px); }
+    .btn-secondary { background: rgba(255,255,255,0.06); color: #bcc3e0; border: 1px solid rgba(255,255,255,0.06); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+    .btn-success { background: #34d399; color: #0b0e1a; }
+    .btn-success:hover { background: #6ee7b7; }
+    .btn-danger { background: #fb7185; color: #0b0e1a; }
+    .btn-danger:hover { background: #fda4af; }
+    input, textarea {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.4);
+      color: #e8edf9;
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #6366f1; }
+    .token-box {
+      background: rgba(0,0,0,0.4);
+      padding: 0.6rem;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      word-break: break-all;
+      font-family: monospace;
+      color: #a5b4fc;
+      margin-top: 0.5rem;
+    }
+    pre {
+      background: rgba(0,0,0,0.4);
+      padding: 0.8rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.7rem;
+      color: #d4def7;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 100px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-success { background: rgba(52,211,153,0.15); color: #34d399; }
+    .badge-error { background: rgba(251,113,133,0.15); color: #fb7185; }
+    .badge-pending { background: rgba(251,191,36,0.12); color: #fbbf24; }
+    hr { border: 0; border-top: 1px solid rgba(255,255,255,0.05); margin: 1.5rem 0; }
+    .note { font-size: 0.7rem; color: #4f5a7a; margin-top: 0.5rem; }
+  </style>
 </head>
 <body>
-<div class="offline-tag" id="offlineTag">OFFLINE</div>
 
-<div id="app">
-  <div class="header">
-    <div class="header-row">
-      <img src="icon.svg" alt="Q&A" class="site-logo" />
-      <h1 class="title">Classes</h1>
-      <a class="header-action" href="books.html">Books</a>
-      <div class="update-pill" id="updatePill">Updating…</div>
-    </div>
-    <div class="breadcrumb"><span class="current">Classes</span></div>
+<div class="card">
+  <h1>📡 <span>FCM</span> Push</h1>
+  <p class="sub">Subscribe to get notifications, or send one to all subscribers.</p>
 
-    <div class="search-bar-global">
-      <span class="search-icon">⌕</span>
-      <input
-        type="search"
-        class="search-input"
-        id="searchInput"
-        placeholder="Search all questions…"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-      />
-      <button class="search-clear" id="searchClear" aria-label="Clear" style="display:none;">×</button>
+  <!-- SUBSCRIBE -->
+  <div class="section">
+    <h2>🔔 Subscribe</h2>
+    <div class="flex">
+      <button class="btn btn-primary" id="subscribeBtn">Subscribe</button>
+      <button class="btn btn-secondary" id="unsubscribeBtn">Unsubscribe</button>
     </div>
+    <div id="tokenDisplay" class="token-box">No token yet</div>
+    <div id="subscribeStatus"></div>
   </div>
 
-  <section class="hero-card">
-    <div class="hero-kicker">Free • Chapter-wise Solutions • HSC SSC </div>
-    <h2 class="hero-title">Exercise Questions and Answers for Maharashtra Board Class 8, 9, 10, 11, 12</h2>
-    <p class="hero-subtitle">Get chapter-wise exercise questions and answers for Maharashtra Board SSC and HSC. Covers Class 8, 9, 10, 11 and 12 — all subjects, all chapters, completely free.</p>
-    <div class="hero-actions">
-      <a class="hero-btn primary" href="#content">Browse Classes</a>
-      <a class="hero-btn" href="books.html">Download Books</a>
+  <!-- SEND -->
+  <div class="section">
+    <h2>📨 Send Notification</h2>
+    <input type="text" id="sendTitle" placeholder="Title" value="Hello!">
+    <textarea id="sendBody" rows="2" placeholder="Body">Test notification from your website.</textarea>
+    <div class="flex">
+      <button class="btn btn-success" id="sendAllBtn">Send to All</button>
+      <button class="btn btn-secondary" id="sendSingleBtn">Send to My Token</button>
     </div>
-  </section>
+    <div id="sendResult"></div>
+  </div>
 
-  <div class="board-filters" id="boardFilters" style="display:none;"></div>
-
-  <div id="content">
-    <div class="skeleton-heading"></div><div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>
+  <hr>
+  <div style="font-size:0.7rem; color:#4f5a7a;">
+    Worker: <span id="workerUrlDisplay">https://shy-recipe-b587.cratee666.workers.dev/</span>
   </div>
 </div>
-<footer class="site-footer"><strong>Q&A Student</strong><br>Simple, organized learning for students.</footer>
 
-<div class="toast" id="toast"></div>
+<!-- ─── Firebase SDK (compat) ─── -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 
-<!-- shared.js loads synchronously BEFORE the page script so helpers are ready. -->
-<script src="shared.js"></script>
 <script>
-(function () {
-  var APP = window.APP;
-  var escapeHtml = APP.escapeHtml;
-  var buildUrl = APP.buildUrl;
-  var refreshTree = APP.refreshTree;
-  var getClassSummaries = APP.getClassSummaries;
-  var svgIcon = APP.svgIcon;
-  var setUpdating = APP.setUpdating;
-  var setPageMeta = APP.setPageMeta;
-  var generateSlug = APP.generateSlug;
+  // ─── YOUR CONFIG ──────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyCnOcZsJpH7QGJ6WZdpguTFV4oBd0XCCYY",
+    authDomain: "my-chat-424e7.firebaseapp.com",
+    databaseURL: "https://my-chat-424e7-default-rtdb.firebaseio.com",
+    projectId: "my-chat-424e7",
+    storageBucket: "my-chat-424e7.firebasestorage.app",
+    messagingSenderId: "697741479796",
+    appId: "1:697741479796:web:991126a18034b0abffa621"
+  };
 
-  var $content = document.getElementById('content');
-  var $search = document.getElementById('searchInput');
-  var $clear = document.getElementById('searchClear');
-  var $boardFilters = document.getElementById('boardFilters');
+  // ─── YOUR VAPID PUBLIC KEY ────────────────────────────
+  const vapidKey = "BNSGEEEazK71ptps5edUqIOPKq0c-Yel97DwF9ZzQmKfSfhUI6orPQr-So8daWL_fE05GAbxUjPrsj3Op7vqufc";
 
-  var classes = [];
-  var allData = null;
-  var allQuestions = [];
-  var searchIndexPromise = null;
-  var debounceTimer = null;
-  var selectedBoard = 'all';
+  // ─── WORKER URL ────────────────────────────────────────
+  const WORKER_URL = 'https://shy-recipe-b587.cratee666.workers.dev/';
 
-  function buildIndex(data) {
-    var items = [];
-    Object.keys(data || {}).forEach(function (cId) {
-      var cName = (data[cId] && data[cId].name) || cId;
-      var cSlug = (data[cId] && data[cId].slug) || generateSlug(cName);
-      var subs = (data[cId] && data[cId].subjects) || {};
-      Object.keys(subs).forEach(function (sId) {
-        var sName = (subs[sId] && subs[sId].name) || sId;
-        var sSlug = (subs[sId] && subs[sId].slug) || generateSlug(sName);
-        var chs = (subs[sId] && subs[sId].chapters) || {};
-        Object.keys(chs).forEach(function (chId) {
-          var chName = (chs[chId] && chs[chId].name) || chId;
-          var chSlug = (chs[chId] && chs[chId].slug) || generateSlug(chName);
-          var qs = (chs[chId] && chs[chId].questions) || {};
-          Object.keys(qs).forEach(function (qId) {
-            items.push({
-              id: qId,
-              classId: cId,
-              className: cName,
-              classSlug: cSlug,
-              subjectId: sId,
-              subjectName: sName,
-              subjectSlug: sSlug,
-              chapterId: chId,
-              chapterName: chName,
-              chapterSlug: chSlug,
-              type: String((qs[qId] && qs[qId].type) || ''),
-              question: String((qs[qId] && qs[qId].question) || ''),
-              answer: String((qs[qId] && qs[qId].answer) || '')
-            });
-          });
-        });
-      });
-    });
-    return items;
+  // ─── INIT ──────────────────────────────────────────────
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+
+  // ─── DOM ──────────────────────────────────────────────
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const unsubscribeBtn = document.getElementById('unsubscribeBtn');
+  const tokenDisplay = document.getElementById('tokenDisplay');
+  const subscribeStatus = document.getElementById('subscribeStatus');
+  const sendTitle = document.getElementById('sendTitle');
+  const sendBody = document.getElementById('sendBody');
+  const sendAllBtn = document.getElementById('sendAllBtn');
+  const sendSingleBtn = document.getElementById('sendSingleBtn');
+  const sendResult = document.getElementById('sendResult');
+  document.getElementById('workerUrlDisplay').textContent = WORKER_URL;
+
+  function setStatus(el, msg, type = '') {
+    el.innerHTML = `<span class="badge badge-${type}">${msg}</span>`;
   }
 
-  function renderBoardFilters() {
-    var boards = [];
-    var seen = {};
-    classes.forEach(function (c) {
-      var board = (c.board || 'Classes').trim() || 'Classes';
-      if (!seen[board]) { seen[board] = true; boards.push({ title: board, order: Number(c.boardOrder == null ? 9999 : c.boardOrder) }); }
+  async function callWorker(path, payload) {
+    const res = await fetch(WORKER_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-    boards.sort(function (a, b) {
-      if (a.order !== b.order) return a.order - b.order;
-      return String(a.title).localeCompare(String(b.title), undefined, { numeric: true });
-    });
-    if (!boards.length || boards.length === 1) { $boardFilters.style.display = 'none'; return; }
-    $boardFilters.style.display = 'flex';
-    $boardFilters.innerHTML = '<button class="filter-chip ' + (selectedBoard === 'all' ? 'active' : '') + '" data-board="all">All</button>' +
-      boards.map(function (b) {
-        return '<button class="filter-chip ' + (selectedBoard === b.title ? 'active' : '') + '" data-board="' + escapeHtml(b.title) + '">' + escapeHtml(b.title) + '</button>';
-      }).join('');
-    Array.prototype.forEach.call($boardFilters.querySelectorAll('[data-board]'), function (btn) {
-      btn.addEventListener('click', function () {
-        selectedBoard = btn.getAttribute('data-board') || 'all';
-        renderBoardFilters();
-        renderClassList();
-      });
-    });
+    return res.json();
   }
 
-  function renderClassList() {
-    if (!classes.length) {
-      $content.innerHTML = '<div class="empty">No classes available yet.</div>';
-      return;
-    }
-
-    renderBoardFilters();
-    var groups = [];
-    var byBoard = {};
-    classes.forEach(function (c) {
-      var board = (c.board || 'Classes').trim() || 'Classes';
-      if (selectedBoard !== 'all' && board !== selectedBoard) return;
-      if (!byBoard[board]) {
-        byBoard[board] = { title: board, order: Number(c.boardOrder == null ? 9999 : c.boardOrder), items: [] };
-        groups.push(byBoard[board]);
+  // ─── SUBSCRIBE ──────────────────────────────────────────
+  async function subscribe() {
+    try {
+      setStatus(subscribeStatus, 'Requesting permission...', 'pending');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setStatus(subscribeStatus, 'Permission denied', 'error');
+        return;
       }
-      byBoard[board].items.push(c);
-    });
-    groups.sort(function (a, b) {
-      if (a.order !== b.order) return a.order - b.order;
-      return String(a.title).localeCompare(String(b.title), undefined, { numeric: true });
-    });
-    if (!groups.length) {
-      selectedBoard = 'all';
-      renderClassList();
-      return;
-    }
 
-    $content.innerHTML = groups.map(function (g) {
-      g.items.sort(function (a, b) {
-        var ao = Number(a.order == null ? 9999 : a.order);
-        var bo = Number(b.order == null ? 9999 : b.order);
-        if (ao !== bo) return ao - bo;
-        return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true });
-      });
-      return '<section class="board-section">' +
-             '<div class="board-title">' + escapeHtml(g.title) + '</div>' +
-             '<div class="list">' + g.items.map(function (c) {
-               var sc = Number(c.subjectCount || 0);
-               var countText = sc ? (sc === 1 ? '1 subject' : sc + ' subjects') : '—';
-               return '<a class="list-item" href="' + buildUrl('subjects.html', { class: c.slug }) + '">' +
-                      svgIcon('class') +
-                      '<span class="card-main"><span class="card-title">' + escapeHtml(c.name || c.id) + '</span>' +
-                      '<span class="card-subtitle">' + escapeHtml(g.title) + '</span></span>' +
-                      '<span class="count">' + countText + '</span>' +
-                      '<span class="arrow">›</span></a>';
-             }).join('') + '</div></section>';
-    }).join('');
-  }
+      setStatus(subscribeStatus, 'Getting token...', 'pending');
+      const token = await messaging.getToken({ vapidKey });
+      tokenDisplay.textContent = token;
 
-  function ensureSearchIndex() {
-    if (allData) return Promise.resolve(allData);
-    if (searchIndexPromise) return searchIndexPromise;
-
-    setUpdating(true);
-    searchIndexPromise = refreshTree().then(function (data) {
-      allData = data || {};
-      allQuestions = buildIndex(allData);
-      setUpdating(false);
-      return allData;
-    }).catch(function (err) {
-      setUpdating(false);
-      searchIndexPromise = null;
-      throw err;
-    });
-    return searchIndexPromise;
-  }
-
-  function doSearch() {
-    var q = ($search.value || '').trim();
-    var qLow = q.toLowerCase();
-    $clear.style.display = q ? 'flex' : 'none';
-
-    if (!q) {
-      renderClassList();
-      return;
-    }
-    $boardFilters.style.display = 'none';
-
-    if (!allData) {
-      $content.innerHTML = '<div class="skeleton-heading"></div><div class="skeleton-list"><div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item short"></div></div>';
-      ensureSearchIndex().then(doSearch).catch(function (err) {
-        $content.innerHTML = '<div class="error-banner">Failed to search: ' +
-                             escapeHtml(err.message || 'Unknown error') + '</div>';
-      });
-      return;
-    }
-
-    if (!allQuestions.length) {
-      $content.innerHTML = '<div class="empty">No questions in database yet.</div>';
-      return;
-    }
-
-    var filtered = allQuestions.filter(function (it) {
-      return (it.question || '').toLowerCase().includes(qLow) ||
-             (it.type || '').toLowerCase().includes(qLow);
-    });
-    if (!filtered.length) {
-      $content.innerHTML = '<div class="empty">No questions match &ldquo;' +
-                           escapeHtml(q) + '&rdquo;.<br>Try a different keyword.</div>';
-      return;
-    }
-
-    var groups = new Map();
-    filtered.forEach(function (it) {
-      var key = it.classId + '||' + it.subjectId + '||' + it.chapterId;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          classId: it.classId, subjectId: it.subjectId, chapterId: it.chapterId,
-          className: it.className, subjectName: it.subjectName, chapterName: it.chapterName,
-          classSlug: it.classSlug, subjectSlug: it.subjectSlug, chapterSlug: it.chapterSlug,
-          items: []
-        });
+      const data = await callWorker('subscribe', { token });
+      if (data.success) {
+        setStatus(subscribeStatus, 'Subscribed! Token saved.', 'success');
+      } else {
+        setStatus(subscribeStatus, 'Error saving token: ' + (data.error || 'unknown'), 'error');
       }
-      groups.get(key).items.push(it);
-    });
-
-    var html = '<div class="search-meta">' + filtered.length +
-               ' result' + (filtered.length === 1 ? '' : 's') +
-               ' for &ldquo;' + escapeHtml(q) + '&rdquo;</div>';
-
-    groups.forEach(function (g) {
-      html += '<div class="search-group">';
-      html += '<div class="search-group-path">';
-      html += '<a href="' + buildUrl('subjects.html', { class: g.classSlug }) + '">' +
-              escapeHtml(g.className) + '</a>';
-      html += '<span class="crumb-sep">›</span>';
-      html += '<a href="' + buildUrl('chapters.html', { class: g.classSlug, subject: g.subjectSlug }) + '">' +
-              escapeHtml(g.subjectName) + '</a>';
-      html += '<span class="crumb-sep">›</span>';
-      html += '<span class="current">' + escapeHtml(g.chapterName) + '</span>';
-      html += '</div><div class="search-group-list">';
-      g.items.forEach(function (it, idx) {
-        var url = buildUrl('answer.html', {
-          class: it.classSlug, subject: it.subjectSlug,
-          chapter: it.chapterSlug, qId: it.id
-        });
-        html += '<a class="search-result" href="' + url + '">';
-        html += svgIcon('question');
-        html += '<div class="result-body">';
-        if (it.type) html += '<div class="result-type">' + escapeHtml(it.type) + '</div>';
-        html += '<div class="result-text">' + escapeHtml(it.question) + '</div>';
-        html += '</div><span class="arrow">›</span></a>';
-      });
-      html += '</div></div>';
-    });
-
-    $content.innerHTML = html;
-  }
-
-  function loadClasses() {
-    if (!navigator.onLine) {
-      $content.innerHTML = '<div class="error-banner">You are offline. Please connect to the internet and reload.</div>';
-      return;
+    } catch (err) {
+      setStatus(subscribeStatus, 'Error: ' + err.message, 'error');
+      console.error(err);
     }
-
-    setUpdating(true);
-    getClassSummaries().then(function (list) {
-      setUpdating(false);
-      classes = list || [];
-      var m = (window.location.hash || '').match(/^#q=(.*)$/);
-      if (m && m[1]) { try { $search.value = decodeURIComponent(m[1]); } catch (e) {} }
-      setPageMeta({
-        title: 'Free Exercise Questions and Answers for Maharashtra Board SSC &amp; HSC | QClasses',
-        description: 'QClasses provides free exercise questions and answers for Maharashtra Board SSC Class 10, HSC Class 12 and CBSE exams. One stop solution to score more in exams.',
-        canonical: window.location.href
-      });
-      doSearch();
-    }).catch(function (err) {
-      setUpdating(false);
-      $content.innerHTML = '<div class="error-banner">Failed to load classes: ' +
-                           escapeHtml(err.message || 'Unknown error') + '</div>';
-    });
   }
 
-  $search.addEventListener('input', function () {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function () {
-      var q = ($search.value || '').trim();
-      var newHash = q ? '#q=' + encodeURIComponent(q) : '';
-      if ((window.location.hash || '') !== newHash) {
-        history.replaceState(null, '', window.location.pathname + (newHash || ''));
+  async function unsubscribe() {
+    try {
+      await messaging.deleteToken();
+      tokenDisplay.textContent = 'No token';
+      setStatus(subscribeStatus, 'Unsubscribed', 'success');
+    } catch (err) {
+      setStatus(subscribeStatus, 'Error: ' + err.message, 'error');
+    }
+  }
+
+  subscribeBtn.addEventListener('click', subscribe);
+  unsubscribeBtn.addEventListener('click', unsubscribe);
+
+  // ─── SEND ──────────────────────────────────────────────
+  async function sendNotification(toAll = true) {
+    const title = sendTitle.value.trim() || 'Test';
+    const body = sendBody.value.trim() || 'Hello!';
+    const payload = { title, body };
+
+    if (!toAll) {
+      const token = tokenDisplay.textContent;
+      if (!token || token === 'No token') {
+        setStatus(sendResult, 'No token found. Subscribe first.', 'error');
+        return;
       }
-      doSearch();
-    }, 180);
-  });
-  $search.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      $search.value = '';
-      history.replaceState(null, '', window.location.pathname);
-      doSearch();
+      payload.token = token;
     }
-  });
-  $clear.addEventListener('click', function () {
-    $search.value = '';
-    history.replaceState(null, '', window.location.pathname);
-    doSearch();
-    $search.focus();
-  });
 
-  loadClasses();
-})();
+    setStatus(sendResult, 'Sending...', 'pending');
+    try {
+      const data = await callWorker('send', payload);
+      setStatus(sendResult, 'Sent! See response below.', 'success');
+      sendResult.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    } catch (err) {
+      setStatus(sendResult, 'Error: ' + err.message, 'error');
+    }
+  }
+
+  sendAllBtn.addEventListener('click', () => sendNotification(true));
+  sendSingleBtn.addEventListener('click', () => sendNotification(false));
+
+  // ─── CHECK EXISTING TOKEN ON LOAD ──────────────────────
+  (async function init() {
+    try {
+      const token = await messaging.getToken({ vapidKey });
+      if (token) tokenDisplay.textContent = token;
+    } catch (_) { /* ignore */ }
+  })();
 </script>
+
+<!-- ─── REGISTER SERVICE WORKER ────────────────────── -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('firebase-messaging-sw.js')
+      .then(() => console.log('SW registered'))
+      .catch(err => console.warn('SW registration failed:', err));
+  }
+</script>
+
 </body>
 </html>

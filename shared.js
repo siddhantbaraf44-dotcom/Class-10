@@ -325,26 +325,29 @@
     }
 
     /* ---------- SEO / meta helpers ---------- */
-    function setPageMeta(opts) {
-      opts = opts || {};
-      if (opts.title) document.title = opts.title;
+    function setMeta(attr, name, val) {
+  var el = document.querySelector('meta[' + attr + '="' + name + '"]');
+  if (!el) { el = document.createElement('meta'); el.setAttribute(attr, name); document.head.appendChild(el); }
+  el.setAttribute('content', val || '');
+}
 
-      var desc = document.querySelector('meta[name="description"]');
-      if (!desc) {
-        desc = document.createElement('meta');
-        desc.name = 'description';
-        document.head.appendChild(desc);
-      }
-      desc.setAttribute('content', opts.description || '');
+function setPageMeta(opts) {
+  opts = opts || {};
+  if (opts.title) document.title = opts.title;
 
-      var can = document.querySelector('link[rel="canonical"]');
-      if (!can) {
-        can = document.createElement('link');
-        can.rel = 'canonical';
-        document.head.appendChild(can);
-      }
-      can.setAttribute('href', opts.canonical || window.location.href);
-    }
+  var desc = opts.description || '';
+  var can = opts.canonical || window.location.href;
+
+  setMeta('name', 'description', desc);
+
+  var canEl = document.querySelector('link[rel="canonical"]');
+  if (!canEl) { canEl = document.createElement('link'); canEl.rel = 'canonical'; document.head.appendChild(canEl); }
+  canEl.setAttribute('href', can);
+
+  setMeta('property', 'og:title', opts.title || '');
+  setMeta('property', 'og:description', desc);
+  setMeta('property', 'og:url', can);
+}
 
     /* Compatibility names used by older pages/debug tools. These do not cache. */
     function refreshTree() {

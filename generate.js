@@ -381,7 +381,12 @@ ${sitemapUrls.map(u => `  <url><loc>${u}</loc></url>`).join('\n')}
   fs.writeFileSync(path.join(DIST_DIR, 'sitemap.xml'), sitemapXml);
   
   console.log('Generating _redirects');
-  fs.writeFileSync(path.join(DIST_DIR, '_redirects'), `/subjects.html  /subjects/:class  301\n/chapters.html  /chapters/:class/:subject  301\n`);
+  const redirectsContent = `/subjects.html  /subjects/  301
+/chapters.html  /chapters/  301
+/questions.html /questions/ 301
+/answer.html    /answer/    301
+`;
+  fs.writeFileSync(path.join(DIST_DIR, '_redirects'), redirectsContent);
 
   console.log('Copying static assets');
   fs.copyFileSync('styles.css', path.join(DIST_DIR, 'styles.css'));

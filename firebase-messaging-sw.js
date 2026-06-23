@@ -23,7 +23,7 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title || 'New notification';
   const notificationOptions = {
     body: payload.notification?.body || 'You have a new message',
-    icon: '/icon.png',          // optional – you can add your own icon
+    icon: '/icon.png',          // optional
     badge: '/badge.png',        // optional
     vibrate: [200, 100, 200],
     data: payload.data || {}
@@ -35,7 +35,6 @@ messaging.onBackgroundMessage((payload) => {
 // ─── OPTIONAL: HANDLE NOTIFICATION CLICKS ─────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  // Custom behaviour – e.g., open a specific URL
   const urlToOpen = event.notification.data?.url || '/';
   event.waitUntil(
     clients.openWindow(urlToOpen)

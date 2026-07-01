@@ -18,7 +18,7 @@
 <div id="app">
   <div class="header">
     <div class="header-row">
-      <a class="home-link" href="index.html" aria-label="Home">⌂</a>
+      <a class="home-link" href="index.html" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10.5V20h11v-9.5"/><path d="M10 20v-5h4v5"/></svg></a>
       <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title">Books</h1>
       <div class="update-pill" id="updatePill">Loading…</div>
@@ -163,7 +163,7 @@
     var disabled = url ? '' : ' disabled';
     var href = url ? ' href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer"' : ' href="#"';
     return '<div class="book-card">' +
-           svgIcon('book') +
+           '<div class="book-cover">' + svgIcon('book') + '</div>' +
            '<div class="book-info"><div class="book-title">' + escapeHtml(title) + '</div>' + author + '</div>' +
            '<a class="download-btn' + disabled + '"' + href + ' download>' + svgIcon('download') + '<span>Download</span></a>' +
            '</div>';

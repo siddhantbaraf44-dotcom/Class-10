@@ -8,8 +8,6 @@
 <meta name="HandheldFriendly" content="true" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
-<meta name="description" content="" />
-<link rel="canonical" href="" />
 <title>Chapters</title>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a3299'/%3E%3Ctext x='50' y='66' text-anchor='middle' fill='white' font-size='62' font-family='sans-serif' font-weight='700'%3EQ%3C/text%3E%3C/svg%3E" />
@@ -24,10 +22,10 @@
 <div id="app">
   <div class="header">
     <div class="header-row">
-      <a class="home-link" href="index.html" aria-label="Home">⌂</a>
+      <a class="home-link" href="index.html" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10.5V20h11v-9.5"/><path d="M10 20v-5h4v5"/></svg></a>
       <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title" id="pageTitle">Chapters</h1>
-      <a class="header-action" href="books.html">Books</a>
+      <a class="header-action" href="books.html"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 4H18a2 2 0 0 1 2 2v14H7.5A3.5 3.5 0 0 1 4 16.5v-10A2.5 2.5 0 0 1 6.5 4Z"/><path d="M7 16h13"/><path d="M8 8h7"/></svg><span>Books</span></a>
       <div class="update-pill" id="updatePill">Updating…</div>
     </div>
     <div class="breadcrumb" id="breadcrumb">
@@ -64,15 +62,8 @@
   var getChapterSummaries = APP.getChapterSummaries;
   var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
-  var setPageMeta = APP.setPageMeta;
-  var resolveClassSlug = APP.resolveClassSlug;
-  var resolveSubjectSlug = APP.resolveSubjectSlug;
-  var loadClassById = APP.loadClassById;
-  var loadSubjectById = APP.loadSubjectById;
 
-  var classSlug = getParam('class');
   var classId = getParam('classId');
-  var subjectSlug = getParam('subject');
   var subjectId = getParam('subjectId');
 
   var $title = document.getElementById('pageTitle');
@@ -82,57 +73,25 @@
   var $content = document.getElementById('content');
   var $search = document.getElementById('searchInput');
   var allChapters = [];
-  var resolvedClass = null;
-  var resolvedSubject = null;
+  var currentClassName = '';
+  var currentSubjectName = '';
 
-  if (!classSlug && !classId) {
-    $content.innerHTML = '<div class="error-banner">Missing class.<br>' +
+  if (!classId || !subjectId) {
+    $content.innerHTML = '<div class="error-banner">Missing class or subject.<br>' +
                          '<a href="index.html">Go back to Classes</a></div>';
     return;
   }
-  if (!subjectSlug && !subjectId) {
-    $content.innerHTML = '<div class="error-banner">Missing subject.<br>' +
-                         '<a href="index.html">Go back to Classes</a></div>';
-    return;
-  }
+  $bottomBack.href = buildUrl('subjects.html', { classId: classId });
+  $crumbClass.href = buildUrl('subjects.html', { classId: classId });
 
-  function resolveClassInfo() {
-    if (classSlug) {
-      return resolveClassSlug(classSlug).then(function (res) {
-        if (res) return res;
-        if (classId) return loadClassById(classId);
-        return null;
-      });
-    }
-    if (classId) return loadClassById(classId);
-    return Promise.resolve(null);
-  }
-
-  function resolveSubjectInfo(classInfo) {
-    if (subjectSlug) {
-      return resolveSubjectSlug(classInfo.id, subjectSlug).then(function (res) {
-        if (res) return res;
-        if (subjectId) return loadSubjectById(classInfo.id, subjectId);
-        return null;
-      });
-    }
-    if (subjectId) return loadSubjectById(classInfo.id, subjectId);
-    return Promise.resolve(null);
-  }
-
-  function render(classInfo, subjectInfo, chapters) {
-    resolvedClass = classInfo;
-    resolvedSubject = subjectInfo;
+  function render(className, subjectName, chapters) {
+    currentClassName = className;
+    currentSubjectName = subjectName;
     allChapters = chapters || [];
-    $title.textContent = subjectInfo.name;
-    setPageMeta({
-      title: subjectInfo.name + ' ' + classInfo.name + ' - Exercise Questions and Answers | QClasses',
-      description: 'Exercise questions and answers of ' + subjectInfo.name + ' ' + classInfo.name + ' SSC Maharashtra Board. Browse all chapters on QClasses.',
-      canonical: window.location.href
-    });
-    $crumbClass.href = buildUrl('subjects.html', { class: classInfo.slug });
-    $crumbClass.textContent = classInfo.name;
-    $crumbCurrent.textContent = subjectInfo.name;
+    $title.textContent = subjectName;
+    document.title = subjectName + ' — Chapters';
+    $crumbClass.textContent = className;
+    $crumbCurrent.textContent = subjectName;
     renderFiltered();
   }
 
@@ -156,10 +115,10 @@
         var qcount = ch.qcount || 0;
         var countText = qcount === 0 ? '—' :
           (qcount === 1 ? '1 question' : qcount + ' questions');
-        return '<a class="list-item" href="' + buildUrl('questions.html', { class: resolvedClass.slug, subject: resolvedSubject.slug, chapter: ch.slug }) + '">' +
+        return '<a class="list-item" href="' + buildUrl('questions.html', { classId: classId, subjectId: subjectId, chapterId: ch.id }) + '">' +
                svgIcon('chapter') +
                '<span class="card-main"><span class="card-title">' + escapeHtml(ch.name || ch.id) + '</span>' +
-               '<span class="card-subtitle">' + escapeHtml(resolvedSubject.name) + '</span></span>' +
+               '<span class="card-subtitle">' + escapeHtml(currentSubjectName) + '</span></span>' +
                '<span class="count">' + countText + '</span>' +
                '<span class="arrow">›</span></a>';
       }).join('') + '</div>';
@@ -173,16 +132,21 @@
     }
 
     setUpdating(true);
-    resolveClassInfo().then(function (classInfo) {
-      if (!classInfo) throw new Error('Class not found');
-      return resolveSubjectInfo(classInfo).then(function (subjectInfo) {
-        if (!subjectInfo) throw new Error('Subject not found');
-        return getChapterSummaries('/classes/' + classInfo.id + '/subjects/' + subjectInfo.id + '/chapters').then(function (chapters) {
-          setUpdating(false);
-          $bottomBack.href = buildUrl('subjects.html', { class: classInfo.slug });
-          render(classInfo, subjectInfo, chapters);
-        });
-      });
+    Promise.all([
+      readData('/classes/' + classId + '/name'),
+      readData('/classes/' + classId + '/subjects/' + subjectId + '/name'),
+      getChapterSummaries('/classes/' + classId + '/subjects/' + subjectId + '/chapters')
+    ]).then(function (parts) {
+      setUpdating(false);
+      var className = parts[0];
+      var subjectName = parts[1];
+      var chapters = parts[2] || [];
+      if (className == null || subjectName == null) {
+        $content.innerHTML = '<div class="error-banner">This class or subject does not exist.<br>' +
+                             '<a href="index.html">Go back to Classes</a></div>';
+        return;
+      }
+      render(String(className), String(subjectName), chapters);
     }).catch(function (err) {
       setUpdating(false);
       $content.innerHTML = '<div class="error-banner">Failed to load chapters: ' +

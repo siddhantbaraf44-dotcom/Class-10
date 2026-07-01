@@ -9,7 +9,6 @@
 <meta name="format-detection" content="telephone=no" />
 <meta name="msapplication-tap-highlight" content="no" />
 <meta name="description" content="Browse educational questions and answers by class, subject and chapter." />
-<link rel="canonical" href="" />
 <title>Classes</title>
 
 <!-- Inline SVG favicon (no extra HTTP request). -->
@@ -28,7 +27,7 @@
     <div class="header-row">
       <img src="icon.svg" alt="Q&A" class="site-logo" />
       <h1 class="title">Classes</h1>
-      <a class="header-action" href="books.html">Books</a>
+      <a class="header-action" href="books.html"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 4H18a2 2 0 0 1 2 2v14H7.5A3.5 3.5 0 0 1 4 16.5v-10A2.5 2.5 0 0 1 6.5 4Z"/><path d="M7 16h13"/><path d="M8 8h7"/></svg><span>Books</span></a>
       <div class="update-pill" id="updatePill">Updating…</div>
     </div>
     <div class="breadcrumb"><span class="current">Classes</span></div>
@@ -50,6 +49,18 @@
   </div>
 
   <section class="hero-card">
+    <div class="hero-illustration" aria-hidden="true">
+      <svg viewBox="0 0 220 160" focusable="false">
+        <rect x="28" y="30" width="112" height="96" rx="18" class="hi-card"/>
+        <rect x="48" y="52" width="72" height="9" rx="4.5" class="hi-line"/>
+        <rect x="48" y="72" width="54" height="8" rx="4" class="hi-line muted"/>
+        <rect x="48" y="90" width="66" height="8" rx="4" class="hi-line muted"/>
+        <circle cx="154" cy="50" r="23" class="hi-orb"/>
+        <path d="M147 50h14M154 43v14" class="hi-stroke"/>
+        <path d="M137 106c9-18 24-26 45-25 8 0 13 7 9 14-7 13-21 25-43 26-9 0-15-7-11-15Z" class="hi-book"/>
+        <path d="M151 92c9 4 17 4 28 0" class="hi-stroke soft"/>
+      </svg>
+    </div>
     <div class="hero-kicker">Learn • Practice • Revise</div>
     <h2 class="hero-title">Organized study material for every board and class.</h2>
     <p class="hero-subtitle">Browse questions, answers, chapters and books in a clean, student-friendly layout.</p>
@@ -81,8 +92,6 @@
   var getClassSummaries = APP.getClassSummaries;
   var svgIcon = APP.svgIcon;
   var setUpdating = APP.setUpdating;
-  var setPageMeta = APP.setPageMeta;
-  var generateSlug = APP.generateSlug;
 
   var $content = document.getElementById('content');
   var $search = document.getElementById('searchInput');
@@ -100,28 +109,22 @@
     var items = [];
     Object.keys(data || {}).forEach(function (cId) {
       var cName = (data[cId] && data[cId].name) || cId;
-      var cSlug = (data[cId] && data[cId].slug) || generateSlug(cName);
       var subs = (data[cId] && data[cId].subjects) || {};
       Object.keys(subs).forEach(function (sId) {
         var sName = (subs[sId] && subs[sId].name) || sId;
-        var sSlug = (subs[sId] && subs[sId].slug) || generateSlug(sName);
         var chs = (subs[sId] && subs[sId].chapters) || {};
         Object.keys(chs).forEach(function (chId) {
           var chName = (chs[chId] && chs[chId].name) || chId;
-          var chSlug = (chs[chId] && chs[chId].slug) || generateSlug(chName);
           var qs = (chs[chId] && chs[chId].questions) || {};
           Object.keys(qs).forEach(function (qId) {
             items.push({
               id: qId,
               classId: cId,
               className: cName,
-              classSlug: cSlug,
               subjectId: sId,
               subjectName: sName,
-              subjectSlug: sSlug,
               chapterId: chId,
               chapterName: chName,
-              chapterSlug: chSlug,
               type: String((qs[qId] && qs[qId].type) || ''),
               question: String((qs[qId] && qs[qId].question) || ''),
               answer: String((qs[qId] && qs[qId].answer) || '')
@@ -199,7 +202,7 @@
              '<div class="list">' + g.items.map(function (c) {
                var sc = Number(c.subjectCount || 0);
                var countText = sc ? (sc === 1 ? '1 subject' : sc + ' subjects') : '—';
-               return '<a class="list-item" href="' + buildUrl('subjects.html', { class: c.slug }) + '">' +
+               return '<a class="list-item" href="' + buildUrl('subjects.html', { classId: c.id }) + '">' +
                       svgIcon('class') +
                       '<span class="card-main"><span class="card-title">' + escapeHtml(c.name || c.id) + '</span>' +
                       '<span class="card-subtitle">' + escapeHtml(g.title) + '</span></span>' +
@@ -269,7 +272,6 @@
         groups.set(key, {
           classId: it.classId, subjectId: it.subjectId, chapterId: it.chapterId,
           className: it.className, subjectName: it.subjectName, chapterName: it.chapterName,
-          classSlug: it.classSlug, subjectSlug: it.subjectSlug, chapterSlug: it.chapterSlug,
           items: []
         });
       }
@@ -283,18 +285,18 @@
     groups.forEach(function (g) {
       html += '<div class="search-group">';
       html += '<div class="search-group-path">';
-      html += '<a href="' + buildUrl('subjects.html', { class: g.classSlug }) + '">' +
+      html += '<a href="' + buildUrl('subjects.html', { classId: g.classId }) + '">' +
               escapeHtml(g.className) + '</a>';
       html += '<span class="crumb-sep">›</span>';
-      html += '<a href="' + buildUrl('chapters.html', { class: g.classSlug, subject: g.subjectSlug }) + '">' +
+      html += '<a href="' + buildUrl('chapters.html', { classId: g.classId, subjectId: g.subjectId }) + '">' +
               escapeHtml(g.subjectName) + '</a>';
       html += '<span class="crumb-sep">›</span>';
       html += '<span class="current">' + escapeHtml(g.chapterName) + '</span>';
       html += '</div><div class="search-group-list">';
       g.items.forEach(function (it, idx) {
         var url = buildUrl('answer.html', {
-          class: it.classSlug, subject: it.subjectSlug,
-          chapter: it.chapterSlug, qId: it.id
+          classId: it.classId, subjectId: it.subjectId,
+          chapterId: it.chapterId, qId: it.id
         });
         html += '<a class="search-result" href="' + url + '">';
         html += svgIcon('question');
@@ -321,11 +323,6 @@
       classes = list || [];
       var m = (window.location.hash || '').match(/^#q=(.*)$/);
       if (m && m[1]) { try { $search.value = decodeURIComponent(m[1]); } catch (e) {} }
-      setPageMeta({
-        title: 'Free Exercise Questions and Answers for Maharashtra Board SSC &amp; HSC | QClasses',
-        description: 'QClasses provides free exercise questions and answers for Maharashtra Board SSC Class 10, HSC Class 12 and CBSE exams. One stop solution to score more in exams.',
-        canonical: window.location.href
-      });
       doSearch();
     }).catch(function (err) {
       setUpdating(false);
